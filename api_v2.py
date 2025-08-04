@@ -45,7 +45,7 @@ app.add_middleware(
 
 # Configuration
 RESULTS_DIR = Path("api_results")
-RESULTS_DIR.mkdir(exist_ok=True)
+RESULTS_DIR.mkdir(exist_ok=True, parents=True)
 METADATA_FILE = RESULTS_DIR / "audit_metadata.json"
 
 # Job status enum
@@ -126,15 +126,27 @@ class ReportsListResponse(BaseModel):
 # Helper functions
 def load_audit_metadata() -> Dict[str, Any]:
     """Load audit metadata from file"""
-    if METADATA_FILE.exists():
-        with open(METADATA_FILE, "r") as f:
-            return json.load(f)
+    try:
+        if METADATA_FILE.exists():
+            with open(METADATA_FILE, "r") as f:
+                data = json.load(f)
+                # Ensure audits key exists
+                if "audits" not in data:
+                    data["audits"] = {}
+                return data
+    except Exception as e:
+        logger.error(f"Error loading audit metadata: {e}")
     return {"audits": {}}
 
 def save_audit_metadata(metadata: Dict[str, Any]):
     """Save audit metadata to file"""
-    with open(METADATA_FILE, "w") as f:
-        json.dump(metadata, f, indent=2)
+    try:
+        # Ensure directory exists
+        METADATA_FILE.parent.mkdir(exist_ok=True, parents=True)
+        with open(METADATA_FILE, "w") as f:
+            json.dump(metadata, f, indent=2)
+    except Exception as e:
+        logger.error(f"Error saving audit metadata: {e}")
 
 def write_job_status(job_dir: Path, status: JobStatus, error: str = None, progress: int = None):
     """Write job status to file"""
