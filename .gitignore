@@ -1,0 +1,62 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Virtual Environment
+.venv/
+venv/
+ENV/
+env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# API Results (don't commit user data)
+api_results/
+audit_metadata.json
+results/
+*.xlsx
+*.json
+!requirements*.json
+!package*.json
+
+# Logs
+*.log
+
+# Test outputs
+test_report_*.json
+test_report_*.xlsx
+
+# Environment variables
+.env
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.bak
+~*
+
+# Input/Output files
+FieldReport.pdf
+DRCMineCode.pdf
+GSMS.pdf
+ISO27001.pdf
+VPSHR.pdf
+compliance_report_*.xlsx
+compliance_report_*.json
+
+# Streamlit
+.streamlit/secrets.toml
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb
