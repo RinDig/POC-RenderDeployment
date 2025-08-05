@@ -2,7 +2,7 @@
 
 An AI-powered multi-agent system for automated compliance analysis that compares audit documents against regulatory frameworks and generates comprehensive compliance reports.
 
-## 🚀 Overview
+## Overview
 
 VigilOre uses advanced AI agents to:
 - Parse audit documents (PDFs, Word docs, text files)
@@ -11,7 +11,7 @@ VigilOre uses advanced AI agents to:
 - Generate detailed reports with scores, gaps, and recommendations
 - Calculate potential financial penalties for non-compliance
 
-## 🌟 Features
+## Features
 
 - **Multi-Framework Analysis**: Compare against multiple regulatory frameworks simultaneously
 - **Intelligent Document Processing**: Supports PDF, DOCX, TXT, and MP3 formats
@@ -21,7 +21,7 @@ VigilOre uses advanced AI agents to:
 - **RESTful API**: Easy integration with any frontend application
 - **Async Processing**: Handle large documents without timeouts
 
-## 🛠️ Technology Stack
+## Technology Stack
 
 - **Backend**: FastAPI (Python)
 - **AI/LLM**: OpenAI GPT-4
@@ -29,13 +29,13 @@ VigilOre uses advanced AI agents to:
 - **Deployment**: Render.com (easily portable to AWS/Azure)
 - **Architecture**: Multi-agent system with specialized AI agents
 
-## 📋 Prerequisites
+## Prerequisites
 
 - Python 3.11+
 - OpenAI API key
 - Git
 
-## 🔧 Installation
+## Installation
 
 1. **Clone the repository**
 ```bash
@@ -142,7 +142,7 @@ The system uses a multi-agent architecture:
 | `OPENAI_API_KEY` | OpenAI API key for GPT-4 access | Yes |
 | `PORT` | Port number (automatically set by Render) | No |
 
-## 📊 Example Output
+## Example Output
 
 The system generates comprehensive compliance reports including:
 
@@ -152,7 +152,7 @@ The system generates comprehensive compliance reports including:
 - **Financial Risk**: Potential penalties for non-compliance (where applicable)
 - **Executive Summary**: AI-generated summary of key findings
 
-## 🔒 Security Considerations
+## Security Considerations
 
 For production deployment:
 
@@ -162,7 +162,7 @@ For production deployment:
 4. **Rate Limiting**: Implement rate limiting to prevent abuse
 5. **Data Encryption**: Encrypt sensitive compliance data at rest
 
-## 🧪 Testing
+## Testing
 
 Run the test script to verify your setup:
 
@@ -176,22 +176,9 @@ This will test:
 - CORS configuration
 - Endpoint availability
 
-## 🤝 Contributing
 
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+## License
 
-## 📄 License
-
-This project is proprietary and confidential. All rights reserved.
-
-## 📞 Support
-
-For questions or support, please contact the development team.
-
----
+This project is proprietary. All rights reserved.
 
 **Note**: This is a proof-of-concept deployment. For production use, additional security measures and infrastructure considerations are required.
