@@ -60,3 +60,7 @@ compliance_report_*.json
 # Jupyter
 .ipynb_checkpoints/
 *.ipynb
+
+# Visualization files
+pipeline_visualization.py
+pipeline_flow.png
