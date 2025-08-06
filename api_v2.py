@@ -59,7 +59,7 @@ class ComplianceStatus(str, Enum):
     COMPLIANT = "compliant"
     NON_COMPLIANT = "non-compliant"
     REVIEW_NEEDED = "review-needed"
-    NOT_APPLICABLE = "not_applicable"
+    NOT_APPLICABLE = "not-applicable"
 
 # Response models
 class AuditSubmissionResponse(BaseModel):
@@ -765,7 +765,44 @@ async def get_report_details(report_id: str):
     Returns the full compliance report for a specific audit
     """
     
-    # Find the audit with this report_id
+    # Check if it's a mock report first
+    mock_reports = generate_mock_reports()
+    mock_report = next((r for r in mock_reports if r.get("report_id") == report_id), None)
+    
+    if mock_report:
+        # Generate mock detailed report
+        return {
+            "metadata": mock_report,
+            "timestamp": datetime.now().isoformat(),
+            "frameworks": mock_report.get("framework_files", []),
+            "overall_compliance_score": mock_report.get("compliance_score", 0) / 100,
+            "results": [
+                {
+                    "category": "Environmental",
+                    "framework": mock_report.get("framework_files", ["ISO_14001_2015.pdf"])[0],
+                    "overall_score": 0.65,
+                    "items": [
+                        {
+                            "question": "Environmental management system established?",
+                            "input_statement": "Partial implementation observed",
+                            "framework_ref": "ISO 14001:4.4",
+                            "match_score": 0.6,
+                            "gap": "Documentation incomplete",
+                            "recommendation": "Complete EMS documentation",
+                            "potential_violations": [],
+                            "max_penalty_usd": 0
+                        }
+                    ],
+                    "total_max_penalty_usd": 0
+                }
+            ],
+            "executive_summary": f"Compliance audit for {mock_report.get('site_name')} shows {mock_report.get('compliance_status')} status.",
+            "critical_recommendations": ["Address safety protocol gaps", "Update environmental assessments"],
+            "total_max_penalty_usd": 50000,
+            "penalty_summary": {"DRC_Mining_Code": 50000}
+        }
+    
+    # Find the real audit with this report_id
     metadata = load_audit_metadata()
     audit = None
     job_id = None
@@ -792,6 +829,85 @@ async def get_report_details(report_id: str):
     report_data["metadata"] = audit
     
     return report_data
+
+@app.get("/reports/{report_id}/findings")
+async def get_report_findings(report_id: str):
+    """
+    Get all findings for a specific report
+    
+    Returns a list of all compliance findings from the report
+    """
+    
+    # First get the full report
+    try:
+        report = await get_report_details(report_id)
+    except HTTPException:
+        raise HTTPException(status_code=404, detail="Report not found")
+    
+    # Extract all findings (ComplianceItems) from the report
+    findings = []
+    finding_id = 0
+    
+    for result in report.get("results", []):
+        for item in result.get("items", []):
+            finding_id += 1
+            findings.append({
+                "finding_id": f"FIND-{report_id}-{finding_id:04d}",
+                "category": result.get("category"),
+                "framework": result.get("framework"),
+                "question": item.get("question"),
+                "input_statement": item.get("input_statement"),
+                "framework_ref": item.get("framework_ref"),
+                "match_score": item.get("match_score"),
+                "status": "compliant" if item.get("match_score", 0) >= 0.8 else 
+                         "review-needed" if item.get("match_score", 0) >= 0.5 else "non-compliant",
+                "gap": item.get("gap"),
+                "recommendation": item.get("recommendation"),
+                "potential_violations": item.get("potential_violations", []),
+                "max_penalty_usd": item.get("max_penalty_usd", 0)
+            })
+    
+    return {
+        "report_id": report_id,
+        "total_findings": len(findings),
+        "findings": findings
+    }
+
+@app.get("/reports/{report_id}/findings/{finding_id}")
+async def get_specific_finding(report_id: str, finding_id: str):
+    """
+    Get a specific finding by ID
+    
+    Returns detailed information about a single compliance finding
+    """
+    
+    # Get all findings for the report
+    try:
+        findings_response = await get_report_findings(report_id)
+    except HTTPException:
+        raise HTTPException(status_code=404, detail="Report not found")
+    
+    # Find the specific finding
+    finding = next(
+        (f for f in findings_response["findings"] if f["finding_id"] == finding_id),
+        None
+    )
+    
+    if not finding:
+        raise HTTPException(status_code=404, detail="Finding not found")
+    
+    # Add additional context for the specific finding
+    finding["report_id"] = report_id
+    finding["detailed_analysis"] = {
+        "compliance_level": "High" if finding["match_score"] >= 0.8 else 
+                            "Medium" if finding["match_score"] >= 0.5 else "Low",
+        "priority": "Critical" if finding["max_penalty_usd"] > 100000 else 
+                   "High" if finding["max_penalty_usd"] > 50000 else 
+                   "Medium" if finding["max_penalty_usd"] > 10000 else "Low",
+        "requires_immediate_action": finding["match_score"] < 0.5 and finding["max_penalty_usd"] > 50000
+    }
+    
+    return finding
 
 @app.get("/reports/{report_id}/excel")
 async def download_report_excel(report_id: str):
