@@ -58,7 +58,7 @@ class JobStatus(str, Enum):
 class ComplianceStatus(str, Enum):
     COMPLIANT = "compliant"
     NON_COMPLIANT = "non-compliant"
-    REVIEW_NEEDED = "review_needed"
+    REVIEW_NEEDED = "review-needed"
     NOT_APPLICABLE = "not_applicable"
 
 # Response models
@@ -73,6 +73,7 @@ class AuditStatusResponse(BaseModel):
 
 class SiteMarker(BaseModel):
     site_name: str
+    site_code: str
     latitude: float
     longitude: float
     status: str
@@ -112,10 +113,13 @@ class FindingsSummary(BaseModel):
 class ReportItem(BaseModel):
     report_id: str
     audit_site: str
+    site_code: Optional[str] = None
     date_of_audit: str
     compliance_score: float
     status: str
     findings_summary: FindingsSummary
+    auditor_name: Optional[str] = None
+    frameworks: Optional[List[str]] = []
 
 class ReportsListResponse(BaseModel):
     total_reports: int
@@ -124,6 +128,87 @@ class ReportsListResponse(BaseModel):
     reports: List[ReportItem]
 
 # Helper functions
+def generate_mock_reports() -> List[Dict[str, Any]]:
+    """Generate mock audit reports for demo purposes"""
+    mock_reports = [
+        {
+            "job_id": "mock-001",
+            "report_id": "REP-2024-0001",
+            "site_name": "Brazzaville Mining Complex",
+            "site_code": "BZV-001",
+            "operator": "Congo Mining Corp",
+            "auditor_name": "Jean-Pierre Mbala",
+            "auditor_email": "jp.mbala@audit.cg",
+            "date_of_audit": "2024-11-15",
+            "status": "complete",
+            "compliance_score": 45.2,
+            "compliance_status": "non-compliant",
+            "findings_summary": {"compliant": 12, "non_compliant": 18, "review_needed": 5},
+            "framework_files": ["ISO_14001_2015.pdf", "VPSHR_2020.pdf"]
+        },
+        {
+            "job_id": "mock-002",
+            "report_id": "REP-2024-0002",
+            "site_name": "Sangha River Mine",
+            "site_code": "SRM-004",
+            "operator": "Sangha Resources Ltd",
+            "auditor_name": "Marie Kouassi",
+            "auditor_email": "m.kouassi@compliance.cg",
+            "date_of_audit": "2024-11-20",
+            "status": "complete",
+            "compliance_score": 82.7,
+            "compliance_status": "compliant",
+            "findings_summary": {"compliant": 28, "non_compliant": 3, "review_needed": 4},
+            "framework_files": ["DRC_Mining_Code_2018.pdf"]
+        },
+        {
+            "job_id": "mock-003",
+            "report_id": "REP-2024-0003",
+            "site_name": "Alima Gold Mine",
+            "site_code": "AGM-025",
+            "operator": "Alima Gold International",
+            "auditor_name": "Pierre Makaya",
+            "auditor_email": "p.makaya@goldaudit.cg",
+            "date_of_audit": "2024-11-25",
+            "status": "complete",
+            "compliance_score": 38.5,
+            "compliance_status": "non-compliant",
+            "findings_summary": {"compliant": 8, "non_compliant": 22, "review_needed": 8},
+            "framework_files": ["ISO_45001_2018.pdf", "ISO_14001_2015.pdf"]
+        },
+        {
+            "job_id": "mock-004",
+            "report_id": "REP-2024-0004",
+            "site_name": "Kabo Forest Mine",
+            "site_code": "KFM-012",
+            "operator": "Forest Mining Solutions",
+            "auditor_name": "Sarah Ndongo",
+            "auditor_email": "s.ndongo@forestaudit.cg",
+            "date_of_audit": "2024-12-01",
+            "status": "complete",
+            "compliance_score": 67.3,
+            "compliance_status": "review-needed",
+            "findings_summary": {"compliant": 15, "non_compliant": 7, "review_needed": 12},
+            "framework_files": ["VPSHR_2020.pdf", "DRC_Mining_Code_2018.pdf"]
+        },
+        {
+            "job_id": "mock-005",
+            "report_id": "REP-2024-0005",
+            "site_name": "Pool Region Quarry",
+            "site_code": "PRQ-061",
+            "operator": "Quarry Operations CG",
+            "auditor_name": "Jean-Pierre Mbala",
+            "auditor_email": "jp.mbala@audit.cg",
+            "date_of_audit": "2024-12-05",
+            "status": "complete",
+            "compliance_score": 51.8,
+            "compliance_status": "non-compliant",
+            "findings_summary": {"compliant": 11, "non_compliant": 16, "review_needed": 9},
+            "framework_files": ["ISO_14001_2015.pdf"]
+        }
+    ]
+    return mock_reports
+
 def load_audit_metadata() -> Dict[str, Any]:
     """Load audit metadata from file"""
     try:
@@ -269,6 +354,7 @@ async def submit_audit(
     input_file: UploadFile = File(..., description="Input transcript or report"),
     framework_files: List[UploadFile] = File(..., description="Framework documents"),
     site_name: str = Form(..., description="Mine site name"),
+    site_code: Optional[str] = Form(None, description="Mine site code"),
     operator: str = Form(..., description="Operator code"),
     auditor_name: str = Form(..., description="Auditor name"),
     auditor_email: EmailStr = Form(..., description="Auditor email"),
@@ -334,6 +420,7 @@ async def submit_audit(
             "job_id": job_id,
             "report_id": report_id,
             "site_name": site_name,
+            "site_code": site_code,
             "operator": operator,
             "auditor_name": auditor_name,
             "auditor_email": auditor_email,
@@ -407,33 +494,115 @@ async def get_dashboard_summary():
     metadata = load_audit_metadata()
     audits = metadata.get("audits", {})
     
-    # Generate sample map data (in production, this would come from a database)
-    sites = [
-        {"name": "Kamoto Copper Company - Pit 2", "lat": -10.7, "lng": 25.4, "status": "non-compliant"},
-        {"name": "Mutanda Mining", "lat": -10.9, "lng": 25.8, "status": "compliant"},
-        {"name": "Tenke Fungurume", "lat": -10.6, "lng": 26.2, "status": "review_needed"},
-        {"name": "Kibali Gold Mine", "lat": 3.0, "lng": 29.9, "status": "compliant"},
-        {"name": "Kamoa-Kakula", "lat": -11.2, "lng": 26.5, "status": "non-compliant"},
+    # Mock data for POC demonstration - this serves as baseline data
+    # Real user-submitted audits will be added to this data
+    mock_sites = [
+        {"name": "Brazzaville Mining Complex", "code": "BZV-001", "lat": -4.2634, "lng": 15.2429, "status": "non-compliant"},
+        {"name": "Sangha River Mine", "code": "SRM-004", "lat": -0.8317, "lng": 17.6856, "status": "compliant"},
+        {"name": "Kabo Forest Mine", "code": "KFM-012", "lat": -2.154, "lng": 16.1624, "status": "review-needed"},
+        {"name": "Ouesso Mining Site", "code": "OMS-007", "lat": -1.8312, "lng": 14.7218, "status": "compliant"},
+        {"name": "Likouala Copper Mine", "code": "LCM-003", "lat": -3.7056, "lng": 17.8914, "status": "not-applicable"},
+        {"name": "Niari Valley Mine", "code": "NVM-008", "lat": -2.9456, "lng": 13.1738, "status": "non-compliant"},
+        {"name": "Cuvette Basin Mine", "code": "CBM-015", "lat": -1.2046, "lng": 16.8974, "status": "review-needed"},
+        {"name": "Pointe-Noire Coastal Mine", "code": "PNC-002", "lat": -4.7727, "lng": 11.8638, "status": "compliant"},
+        {"name": "Impfondo Diamond Mine", "code": "IDM-019", "lat": -0.6134, "lng": 16.2456, "status": "review-needed"},
+        {"name": "Alima Gold Mine", "code": "AGM-025", "lat": -3.1542, "lng": 15.8745, "status": "non-compliant"},
+        {"name": "Dolisie Iron Ore", "code": "DIO-031", "lat": -2.4892, "lng": 12.9834, "status": "compliant"},
+        {"name": "Bomassa Timber Mine", "code": "BTM-047", "lat": -1.5628, "lng": 18.1456, "status": "not-applicable"},
+        {"name": "Mayombe Bauxite", "code": "MBX-013", "lat": -4.1234, "lng": 13.5678, "status": "review-needed"},
+        {"name": "Plateaux Copper Mine", "code": "PCM-055", "lat": -0.9876, "lng": 15.4321, "status": "compliant"},
+        {"name": "Pool Region Quarry", "code": "PRQ-061", "lat": -3.8765, "lng": 14.2109, "status": "non-compliant"},
+        {"name": "Mambili Forest Concession", "code": "MFC-078", "lat": -1.3456, "lng": 17.289, "status": "compliant"},
+        {"name": "Odzala Phosphate Mine", "code": "OPM-084", "lat": -2.789, "lng": 16.5432, "status": "review-needed"},
+        {"name": "Kouilou Salt Works", "code": "KSW-092", "lat": -4.5432, "lng": 12.3456, "status": "not-applicable"},
+        {"name": "Equateur Limestone", "code": "ELS-103", "lat": -1.7654, "lng": 14.9876, "status": "compliant"},
+        {"name": "Sangha Zinc Mine", "code": "SZM-118", "lat": -3.4567, "lng": 17.1234, "status": "non-compliant"},
     ]
     
+    # Start with mock sites
+    all_sites = mock_sites.copy()
+    existing_codes = {site["code"] for site in mock_sites}
+    
+    # Add real audit data if available (avoiding duplicates)
+    for audit_id, audit in audits.items():
+        if audit.get("status") == JobStatus.COMPLETED.value:
+            site_code = audit.get("site_code")
+            if site_code and site_code not in existing_codes:
+                # Determine compliance status based on score
+                score = audit.get("compliance_score", 0)
+                if score >= 80:
+                    status = "compliant"
+                elif score >= 60:
+                    status = "review-needed"
+                else:
+                    status = "non-compliant"
+                
+                # Add real audit site (you'd need to add lat/lng in real implementation)
+                all_sites.append({
+                    "name": audit.get("site_name", "Unknown Site"),
+                    "code": site_code,
+                    "lat": -2.5 + random.uniform(-2, 2),  # Random lat for demo
+                    "lng": 15.5 + random.uniform(-3, 3),  # Random lng for demo
+                    "status": status
+                })
+                existing_codes.add(site_code)
+    
+    # Create site markers from combined data
     national_compliance_map = [
         SiteMarker(
             site_name=site["name"],
+            site_code=site["code"],
             latitude=site["lat"],
             longitude=site["lng"],
             status=site["status"]
-        ) for site in sites
+        ) for site in all_sites
     ]
     
-    # Calculate risk hotspots from recent audits
+    # Risk hotspots mock data
     risk_hotspots = [
         RiskHotspot(
-            site_name="Kamoto Copper Company - Pit 2",
-            site_code="KCC-002",
+            site_name="Brazzaville Mining Complex",
+            site_code="BZV-001",
+            risk_score=92,
+            top_issues=[
+                RiskIssue(issue="Safety Protocol Violations (ISO 45001:6.1)", status="non-compliant"),
+                RiskIssue(issue="Environmental Impact Assessment Missing (ISO 14001:4.3)", status="non-compliant")
+            ]
+        ),
+        RiskHotspot(
+            site_name="Sangha River Mine",
+            site_code="SRM-004", 
+            risk_score=67,
+            top_issues=[
+                RiskIssue(issue="Worker Training Documentation (VPSHR 3.A.2)", status="review-needed"),
+                RiskIssue(issue="Equipment Maintenance Logs (DRC 8.2.B)", status="review-needed")
+            ]
+        ),
+        RiskHotspot(
+            site_name="Alima Gold Mine",
+            site_code="AGM-025",
+            risk_score=88,
+            top_issues=[
+                RiskIssue(issue="Waste Management Violations (ISO 14001:8.1)", status="non-compliant"),
+                RiskIssue(issue="Community Engagement Records Missing (VPSHR 1.C.4)", status="non-compliant")
+            ]
+        ),
+        RiskHotspot(
+            site_name="Pool Region Quarry",
+            site_code="PRQ-061",
+            risk_score=79,
+            top_issues=[
+                RiskIssue(issue="Blast Zone Safety Protocols (DRC 5.3.A)", status="non-compliant"),
+                RiskIssue(issue="Dust Control Measures Inadequate (ISO 14001:6.2)", status="review-needed")
+            ]
+        ),
+        RiskHotspot(
+            site_name="Niari Valley Mine",
+            site_code="NVM-008",
             risk_score=85,
             top_issues=[
-                RiskIssue(issue="Armed-Guard Training Gaps (VPSHR 2.B.3)", status="non-compliant"),
-                RiskIssue(issue="Explosives Storage Perimeter Fencing (DRC 7.6.A)", status="non-compliant")
+                RiskIssue(issue="Water Quality Testing Overdue (ISO 14001:9.1)", status="non-compliant"),
+                RiskIssue(issue="Emergency Response Plan Outdated (ISO 45001:8.2)", status="review-needed")
             ]
         )
     ]
@@ -492,7 +661,16 @@ async def get_reports_list(
     page: int = Query(1, ge=1, description="Page number"),
     limit: int = Query(10, ge=1, le=100, description="Items per page"),
     sort_by: str = Query("date_of_audit", description="Sort field"),
-    order: str = Query("desc", description="Sort order (asc/desc)")
+    order: str = Query("desc", description="Sort order (asc/desc)"),
+    site_name: Optional[str] = Query(None, description="Filter by site name"),
+    site_code: Optional[str] = Query(None, description="Filter by site code"),
+    status: Optional[str] = Query(None, description="Filter by compliance status"),
+    min_score: Optional[float] = Query(None, ge=0, le=100, description="Minimum compliance score"),
+    max_score: Optional[float] = Query(None, ge=0, le=100, description="Maximum compliance score"),
+    start_date: Optional[str] = Query(None, description="Start date (YYYY-MM-DD)"),
+    end_date: Optional[str] = Query(None, description="End date (YYYY-MM-DD)"),
+    auditor_name: Optional[str] = Query(None, description="Filter by auditor name"),
+    framework: Optional[str] = Query(None, description="Filter by framework")
 ):
     """
     Get paginated list of audit reports
@@ -502,22 +680,56 @@ async def get_reports_list(
     
     # Load all audits from metadata
     metadata = load_audit_metadata()
-    all_audits = list(metadata.get("audits", {}).values())
+    real_audits = list(metadata.get("audits", {}).values())
+    
+    # Combine mock reports with real audits
+    mock_reports = generate_mock_reports()
+    all_audits = mock_reports + real_audits
     
     # Filter only completed audits
-    completed_audits = [a for a in all_audits if a.get("status") == JobStatus.COMPLETED.value]
+    filtered_audits = [a for a in all_audits if a.get("status") in [JobStatus.COMPLETED.value, "complete"]]
+    
+    # Apply filters
+    if site_name:
+        filtered_audits = [a for a in filtered_audits if site_name.lower() in a.get("site_name", "").lower()]
+    
+    if site_code:
+        filtered_audits = [a for a in filtered_audits if a.get("site_code", "") == site_code]
+    
+    if status:
+        filtered_audits = [a for a in filtered_audits if a.get("compliance_status", "") == status]
+    
+    if min_score is not None:
+        filtered_audits = [a for a in filtered_audits if a.get("compliance_score", 0) >= min_score]
+    
+    if max_score is not None:
+        filtered_audits = [a for a in filtered_audits if a.get("compliance_score", 100) <= max_score]
+    
+    if start_date:
+        filtered_audits = [a for a in filtered_audits if a.get("date_of_audit", "") >= start_date]
+    
+    if end_date:
+        filtered_audits = [a for a in filtered_audits if a.get("date_of_audit", "") <= end_date]
+    
+    if auditor_name:
+        filtered_audits = [a for a in filtered_audits if auditor_name.lower() in a.get("auditor_name", "").lower()]
+    
+    if framework:
+        filtered_audits = [a for a in filtered_audits if framework.lower() in str(a.get("framework_files", [])).lower()]
     
     # Sort audits
     if sort_by == "date_of_audit":
-        completed_audits.sort(key=lambda x: x.get("date_of_audit", ""), reverse=(order == "desc"))
+        filtered_audits.sort(key=lambda x: x.get("date_of_audit", ""), reverse=(order == "desc"))
     elif sort_by == "compliance_score":
-        completed_audits.sort(key=lambda x: x.get("compliance_score", 0), reverse=(order == "desc"))
+        filtered_audits.sort(key=lambda x: x.get("compliance_score", 0), reverse=(order == "desc"))
+    elif sort_by == "site_name":
+        filtered_audits.sort(key=lambda x: x.get("site_name", ""), reverse=(order == "desc"))
     
     # Calculate pagination
-    total_reports = len(completed_audits)
+    total_reports = len(filtered_audits)
     start_idx = (page - 1) * limit
     end_idx = start_idx + limit
-    paginated_audits = completed_audits[start_idx:end_idx]
+    paginated_audits = filtered_audits[start_idx:end_idx]
     
     # Format reports
     reports = []
@@ -525,6 +737,7 @@ async def get_reports_list(
         reports.append(ReportItem(
             report_id=audit.get("report_id", "Unknown"),
             audit_site=audit.get("site_name", "Unknown Site"),
+            site_code=audit.get("site_code"),
             date_of_audit=audit.get("date_of_audit", datetime.now().date().isoformat()),
             compliance_score=round(audit.get("compliance_score", 0), 1),
             status=audit.get("status", "unknown"),
@@ -532,7 +745,9 @@ async def get_reports_list(
                 compliant=audit.get("findings_summary", {}).get("compliant", 0),
                 non_compliant=audit.get("findings_summary", {}).get("non_compliant", 0),
                 review_needed=audit.get("findings_summary", {}).get("review_needed", 0)
-            )
+            ),
+            auditor_name=audit.get("auditor_name"),
+            frameworks=audit.get("framework_files", [])
         ))
     
     return ReportsListResponse(
