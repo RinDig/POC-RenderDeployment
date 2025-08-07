@@ -1,0 +1,303 @@
+{
+  "reports": [
+    {
+      "report_id": "REP-2024-0001",
+      "audit_site": "Brazzaville Mining Complex",
+      "site_code": "BZV-001",
+      "date_of_audit": "2024-11-15",
+      "compliance_score": 45.2,
+      "status": "complete",
+      "findings_summary": {
+        "compliant": 12,
+        "non_compliant": 18,
+        "review_needed": 5
+      },
+      "auditor_name": "Jean-Pierre Mbala",
+      "frameworks": ["ISO_14001_2015.pdf", "VPSHR_2020.pdf"],
+      "operator": "Congo Mining Corp",
+      "critical_issues": 8
+    },
+    {
+      "report_id": "REP-2024-0002",
+      "audit_site": "Sangha River Mine",
+      "site_code": "SRM-004",
+      "date_of_audit": "2024-11-20",
+      "compliance_score": 82.7,
+      "status": "complete",
+      "findings_summary": {
+        "compliant": 28,
+        "non_compliant": 3,
+        "review_needed": 4
+      },
+      "auditor_name": "Marie Kouassi",
+      "frameworks": ["DRC_Mining_Code_2018.pdf"],
+      "operator": "Sangha Resources Ltd",
+      "critical_issues": 1
+    },
+    {
+      "report_id": "REP-2024-0003",
+      "audit_site": "Alima Gold Mine",
+      "site_code": "AGM-025",
+      "date_of_audit": "2024-11-25",
+      "compliance_score": 38.5,
+      "status": "complete",
+      "findings_summary": {
+        "compliant": 8,
+        "non_compliant": 22,
+        "review_needed": 8
+      },
+      "auditor_name": "Pierre Makaya",
+      "frameworks": ["ISO_45001_2018.pdf", "ISO_14001_2015.pdf"],
+      "operator": "Alima Gold International",
+      "critical_issues": 12
+    },
+    {
+      "report_id": "REP-2024-0004",
+      "audit_site": "Kabo Forest Mine",
+      "site_code": "KFM-012",
+      "date_of_audit": "2024-12-01",
+      "compliance_score": 67.3,
+      "status": "complete",
+      "findings_summary": {
+        "compliant": 15,
+        "non_compliant": 7,
+        "review_needed": 12
+      },
+      "auditor_name": "Sarah Ndongo",
+      "frameworks": ["VPSHR_2020.pdf", "DRC_Mining_Code_2018.pdf"],
+      "operator": "Forest Mining Solutions",
+      "critical_issues": 3
+    },
+    {
+      "report_id": "REP-2024-0005",
+      "audit_site": "Pool Region Quarry",
+      "site_code": "PRQ-061",
+      "date_of_audit": "2024-12-05",
+      "compliance_score": 51.8,
+      "status": "complete",
+      "findings_summary": {
+        "compliant": 11,
+        "non_compliant": 16,
+        "review_needed": 9
+      },
+      "auditor_name": "Jean-Pierre Mbala",
+      "frameworks": ["ISO_14001_2015.pdf"],
+      "operator": "Quarry Operations CG",
+      "critical_issues": 6
+    },
+    {
+      "report_id": "REP-2024-0006",
+      "audit_site": "Ouesso Mining Site",
+      "site_code": "OMS-007",
+      "date_of_audit": "2024-12-08",
+      "compliance_score": 78.9,
+      "status": "complete",
+      "findings_summary": {
+        "compliant": 25,
+        "non_compliant": 5,
+        "review_needed": 6
+      },
+      "auditor_name": "Emmanuel Tchissambou",
+      "frameworks": ["ISO_45001_2018.pdf", "VPSHR_2020.pdf"],
+      "operator": "Ouesso Mining Corp",
+      "critical_issues": 2
+    },
+    {
+      "report_id": "REP-2024-0007",
+      "audit_site": "Niari Valley Mine",
+      "site_code": "NVM-008",
+      "date_of_audit": "2024-12-10",
+      "compliance_score": 42.1,
+      "status": "complete",
+      "findings_summary": {
+        "compliant": 10,
+        "non_compliant": 20,
+        "review_needed": 10
+      },
+      "auditor_name": "Claudine Moukoko",
+      "frameworks": ["DRC_Mining_Code_2018.pdf", "ISO_14001_2015.pdf"],
+      "operator": "Niari Valley Resources",
+      "critical_issues": 9
+    },
+    {
+      "report_id": "REP-2024-0008",
+      "audit_site": "Pointe-Noire Coastal Mine",
+      "site_code": "PNC-002",
+      "date_of_audit": "2024-12-12",
+      "compliance_score": 89.3,
+      "status": "complete",
+      "findings_summary": {
+        "compliant": 32,
+        "non_compliant": 2,
+        "review_needed": 3
+      },
+      "auditor_name": "François Malonga",
+      "frameworks": ["ISO_14001_2015.pdf", "ISO_45001_2018.pdf"],
+      "operator": "Coastal Mining Industries",
+      "critical_issues": 0
+    },
+    {
+      "report_id": "REP-2024-0009",
+      "audit_site": "Impfondo Diamond Mine",
+      "site_code": "IDM-019",
+      "date_of_audit": "2024-12-14",
+      "compliance_score": 63.7,
+      "status": "complete",
+      "findings_summary": {
+        "compliant": 18,
+        "non_compliant": 9,
+        "review_needed": 11
+      },
+      "auditor_name": "Marie Kouassi",
+      "frameworks": ["VPSHR_2020.pdf"],
+      "operator": "Diamond Extraction Ltd",
+      "critical_issues": 4
+    },
+    {
+      "report_id": "REP-2024-0010",
+      "audit_site": "Dolisie Iron Ore",
+      "site_code": "DIO-031",
+      "date_of_audit": "2024-12-16",
+      "compliance_score": 75.4,
+      "status": "complete",
+      "findings_summary": {
+        "compliant": 22,
+        "non_compliant": 6,
+        "review_needed": 7
+      },
+      "auditor_name": "Robert Nganga",
+      "frameworks": ["DRC_Mining_Code_2018.pdf"],
+      "operator": "Iron Ore Congo SA",
+      "critical_issues": 2
+    },
+    {
+      "report_id": "REP-2024-0011",
+      "audit_site": "Mayombe Bauxite",
+      "site_code": "MBX-013",
+      "date_of_audit": "2024-12-18",
+      "compliance_score": 55.2,
+      "status": "complete",
+      "findings_summary": {
+        "compliant": 14,
+        "non_compliant": 13,
+        "review_needed": 10
+      },
+      "auditor_name": "Sarah Ndongo",
+      "frameworks": ["ISO_14001_2015.pdf", "ISO_45001_2018.pdf"],
+      "operator": "Bauxite Mining Group",
+      "critical_issues": 5
+    },
+    {
+      "report_id": "REP-2024-0012",
+      "audit_site": "Plateaux Copper Mine",
+      "site_code": "PCM-055",
+      "date_of_audit": "2024-12-20",
+      "compliance_score": 83.6,
+      "status": "complete",
+      "findings_summary": {
+        "compliant": 29,
+        "non_compliant": 4,
+        "review_needed": 5
+      },
+      "auditor_name": "Jean-Baptiste Kaya",
+      "frameworks": ["VPSHR_2020.pdf", "DRC_Mining_Code_2018.pdf"],
+      "operator": "Copper Resources International",
+      "critical_issues": 1
+    },
+    {
+      "report_id": "REP-2024-0013",
+      "audit_site": "Mambili Forest Concession",
+      "site_code": "MFC-078",
+      "date_of_audit": "2024-12-22",
+      "compliance_score": 71.8,
+      "status": "complete",
+      "findings_summary": {
+        "compliant": 20,
+        "non_compliant": 8,
+        "review_needed": 8
+      },
+      "auditor_name": "Pierre Makaya",
+      "frameworks": ["ISO_14001_2015.pdf"],
+      "operator": "Forest Concessions Ltd",
+      "critical_issues": 3
+    },
+    {
+      "report_id": "REP-2024-0014",
+      "audit_site": "Odzala Phosphate Mine",
+      "site_code": "OPM-084",
+      "date_of_audit": "2024-12-24",
+      "compliance_score": 58.9,
+      "status": "complete",
+      "findings_summary": {
+        "compliant": 16,
+        "non_compliant": 12,
+        "review_needed": 14
+      },
+      "auditor_name": "Claudine Moukoko",
+      "frameworks": ["DRC_Mining_Code_2018.pdf", "ISO_45001_2018.pdf"],
+      "operator": "Phosphate Mining Congo",
+      "critical_issues": 5
+    },
+    {
+      "report_id": "REP-2024-0015",
+      "audit_site": "Sangha Zinc Mine",
+      "site_code": "SZM-118",
+      "date_of_audit": "2024-12-26",
+      "compliance_score": 39.7,
+      "status": "complete",
+      "findings_summary": {
+        "compliant": 9,
+        "non_compliant": 21,
+        "review_needed": 7
+      },
+      "auditor_name": "Emmanuel Tchissambou",
+      "frameworks": ["ISO_14001_2015.pdf", "VPSHR_2020.pdf", "ISO_45001_2018.pdf"],
+      "operator": "Zinc Extraction Industries",
+      "critical_issues": 11
+    }
+  ],
+  "pagination_example": {
+    "page_1": {
+      "total_reports": 15,
+      "page": 1,
+      "limit": 10,
+      "reports": "First 10 reports from above"
+    },
+    "page_2": {
+      "total_reports": 15,
+      "page": 2,
+      "limit": 10,
+      "reports": "Reports 11-15 from above"
+    }
+  },
+  "ui_elements": {
+    "header": {
+      "left": "Showing 1-10 of 15",
+      "right": {
+        "prev_button": "PREV (disabled on page 1)",
+        "next_button": "NEXT (enabled)"
+      }
+    },
+    "columns": [
+      "Report ID",
+      "Audit Site",
+      "Date of Audit",
+      "Compliance Score",
+      "Status",
+      "Findings"
+    ],
+    "color_coding": {
+      "compliance_score": {
+        "red": "< 52%",
+        "amber": "52% - 75%",
+        "green": "> 75%"
+      },
+      "status_badge": "dark-green rounded label",
+      "report_id_badge": "grey rounded label"
+    },
+    "findings_display": {
+      "line_1": "Total Issues: X (grey text)",
+      "line_2": "Critical Issues: Y (red text)"
+    }
+  }
+}
