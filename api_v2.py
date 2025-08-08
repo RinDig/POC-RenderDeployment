@@ -920,36 +920,79 @@ async def get_report_details(report_id: str):
     mock_report = next((r for r in mock_reports if r.get("report_id") == report_id), None)
     
     if mock_report:
-        # Generate mock detailed report
+        # Generate mock detailed report with improved structure
+        compliance_score = mock_report.get("compliance_score", 0)
+        site_name = mock_report.get("site_name")
+        
+        # Convert executive summary to markdown format with emphasis on numbers
+        executive_summary = f"""## Compliance Assessment Summary
+
+**Site:** {site_name}  
+**Overall Compliance Score:** **{compliance_score}%**  
+**Status:** {mock_report.get('compliance_status').upper()}
+
+### Key Findings:
+- **{mock_report.get('findings_summary', {}).get('compliant', 0)}** compliant items
+- **{mock_report.get('findings_summary', {}).get('non_compliant', 0)}** non-compliant items  
+- **{mock_report.get('findings_summary', {}).get('review_needed', 0)}** items requiring review
+
+### Risk Assessment:
+Total potential financial exposure identified: **$50,000**"""
+        
+        # Structure critical actions with id, priority, and description
+        critical_actions = [
+            {
+                "id": "action_001",
+                "priority": "critical",
+                "description": "Implement integrated alarm system across main gate"
+            },
+            {
+                "id": "action_002",
+                "priority": "critical",
+                "description": "Close perimeter segregating gaps"
+            },
+            {
+                "id": "action_003",
+                "priority": "medium",
+                "description": "Upload induction logbook template & train supervisors"
+            },
+            {
+                "id": "action_004",
+                "priority": "low",
+                "description": "Provide proof of transparent production reporting"
+            }
+        ]
+        
+        # Separate financial exposure structure
+        financial_exposure = {
+            "totalExposure": "$50,000",
+            "violations": [
+                {
+                    "code": "7.1.A",
+                    "description": "Administrative/procedural noncompliance",
+                    "maxExposure": "$12,500"
+                },
+                {
+                    "code": "9.2.B",
+                    "description": "Unauthorized processing/transformation",
+                    "maxExposure": "$25,000"
+                },
+                {
+                    "code": "8.4.C",
+                    "description": "Theft, concealment of minerals",
+                    "maxExposure": "$12,500"
+                }
+            ]
+        }
+        
         return {
             "metadata": mock_report,
             "timestamp": datetime.now().isoformat(),
             "frameworks": mock_report.get("framework_files", []),
-            "overall_compliance_score": mock_report.get("compliance_score", 0) / 100,
-            "results": [
-                {
-                    "category": "Environmental",
-                    "framework": mock_report.get("framework_files", ["ISO_14001_2015.pdf"])[0],
-                    "overall_score": 0.65,
-                    "items": [
-                        {
-                            "question": "Environmental management system established?",
-                            "input_statement": "Partial implementation observed",
-                            "framework_ref": "ISO 14001:4.4",
-                            "match_score": 0.6,
-                            "gap": "Documentation incomplete",
-                            "recommendation": "Complete EMS documentation",
-                            "potential_violations": [],
-                            "max_penalty_usd": 0
-                        }
-                    ],
-                    "total_max_penalty_usd": 0
-                }
-            ],
-            "executive_summary": f"Compliance audit for {mock_report.get('site_name')} shows {mock_report.get('compliance_status')} status.",
-            "critical_recommendations": ["Address safety protocol gaps", "Update environmental assessments"],
-            "total_max_penalty_usd": 50000,
-            "penalty_summary": {"DRC_Mining_Code": 50000}
+            "overall_compliance_score": compliance_score / 100,
+            "executive_summary": executive_summary,
+            "criticalActions": critical_actions,
+            "financialExposure": financial_exposure
         }
     
     # Find the real audit with this report_id
@@ -975,52 +1018,253 @@ async def get_report_details(report_id: str):
     with open(json_path, "r") as f:
         report_data = json.load(f)
     
-    # Add metadata to the report
-    report_data["metadata"] = audit
+    # Process and restructure the report data
+    compliance_score = report_data.get("overall_compliance_score", 0) * 100
+    site_name = audit.get("site_name", "Unknown Site")
     
-    return report_data
+    # Count findings by status
+    compliant_count = 0
+    non_compliant_count = 0
+    review_needed_count = 0
+    
+    for result in report_data.get("results", []):
+        for item in result.get("items", []):
+            score = item.get("match_score", 0)
+            if score >= 0.8:
+                compliant_count += 1
+            elif score >= 0.5:
+                review_needed_count += 1
+            else:
+                non_compliant_count += 1
+    
+    # Convert executive summary to markdown if not already
+    original_summary = report_data.get("executive_summary", "")
+    if not original_summary.startswith("##"):
+        executive_summary = f"""## Compliance Assessment Summary
+
+**Site:** {site_name}  
+**Overall Compliance Score:** **{compliance_score:.1f}%**  
+
+### Key Findings:
+- **{compliant_count}** compliant items
+- **{non_compliant_count}** non-compliant items  
+- **{review_needed_count}** items requiring review
+
+### Analysis Summary:
+{original_summary}
+
+### Risk Assessment:
+Total potential financial exposure: **${report_data.get('total_max_penalty_usd', 0):,.2f}**"""
+    else:
+        executive_summary = original_summary
+    
+    # Convert critical recommendations to structured actions
+    critical_actions = []
+    recommendations = report_data.get("critical_recommendations", [])
+    for idx, rec in enumerate(recommendations, 1):
+        # Determine priority based on position and content
+        if idx <= 2 or "critical" in rec.lower() or "immediate" in rec.lower():
+            priority = "critical"
+        elif idx <= 4 or "high" in rec.lower():
+            priority = "high"
+        elif "medium" in rec.lower():
+            priority = "medium"
+        else:
+            priority = "low"
+        
+        critical_actions.append({
+            "id": f"action_{idx:03d}",
+            "priority": priority,
+            "description": rec
+        })
+    
+    # Structure financial exposure data
+    total_penalty = report_data.get("total_max_penalty_usd", 0)
+    financial_exposure = {
+        "totalExposure": f"${total_penalty:,.2f}",
+        "violations": []
+    }
+    
+    # Extract violations from results
+    seen_violations = set()
+    for result in report_data.get("results", []):
+        for item in result.get("items", []):
+            for violation in item.get("potential_violations", []):
+                violation_key = f"{violation.get('code')}_{violation.get('description')}"
+                if violation_key not in seen_violations and violation.get("max_penalty_usd", 0) > 0:
+                    seen_violations.add(violation_key)
+                    financial_exposure["violations"].append({
+                        "code": violation.get("code", ""),
+                        "description": violation.get("description", ""),
+                        "maxExposure": f"${violation.get('max_penalty_usd', 0):,.2f}"
+                    })
+    
+    # Sort violations by amount (highest first)
+    financial_exposure["violations"].sort(
+        key=lambda x: float(x["maxExposure"].replace("$", "").replace(",", "")),
+        reverse=True
+    )
+    
+    # Return restructured report without redundant results
+    return {
+        "metadata": audit,
+        "timestamp": report_data.get("timestamp", datetime.now().isoformat()),
+        "frameworks": report_data.get("frameworks", []),
+        "overall_compliance_score": report_data.get("overall_compliance_score", 0),
+        "executive_summary": executive_summary,
+        "criticalActions": critical_actions,
+        "financialExposure": financial_exposure
+    }
 
 @app.get("/reports/{report_id}/findings")
 async def get_report_findings(report_id: str):
     """
     Get all findings for a specific report
     
-    Returns a list of all compliance findings from the report
+    Returns findings with nested structure: results > categories > items
     """
     
-    # First get the full report
-    try:
-        report = await get_report_details(report_id)
-    except HTTPException:
+    # Check if it's a mock report first
+    mock_reports = generate_mock_reports()
+    mock_report = next((r for r in mock_reports if r.get("report_id") == report_id), None)
+    
+    if mock_report:
+        # Generate mock findings with nested structure
+        return {
+            "report_id": report_id,
+            "results": [
+                {
+                    "category": "Environmental",
+                    "framework": mock_report.get("framework_files", ["ISO_14001_2015.pdf"])[0],
+                    "overall_score": 0.65,
+                    "items": [
+                        {
+                            "finding_id": f"FIND-{report_id}-0001",
+                            "question": "Is there an established environmental management system?",
+                            "input_statement": "Partial implementation observed",
+                            "framework_ref": "ISO 14001:4.4",
+                            "match_score": 0.6,
+                            "compliance_level": "Medium",
+                            "status": "review-needed",
+                            "gap": "Documentation incomplete",
+                            "recommendation": "Complete EMS documentation",
+                            "potential_violations": [],
+                            "max_penalty_usd": 0
+                        },
+                        {
+                            "finding_id": f"FIND-{report_id}-0002",
+                            "question": "Are waste management procedures documented and followed?",
+                            "input_statement": "No waste management system in place",
+                            "framework_ref": "ISO 14001:8.1",
+                            "match_score": 0.2,
+                            "compliance_level": "Low",
+                            "status": "non-compliant",
+                            "gap": "Critical waste management gaps",
+                            "recommendation": "Implement waste management system immediately",
+                            "potential_violations": [
+                                {"code": "7.1.A", "description": "Environmental violations", "max_penalty_usd": 25000}
+                            ],
+                            "max_penalty_usd": 25000
+                        }
+                    ]
+                },
+                {
+                    "category": "Safety",
+                    "framework": "ISO_45001_2018.pdf",
+                    "overall_score": 0.45,
+                    "items": [
+                        {
+                            "finding_id": f"FIND-{report_id}-0003",
+                            "question": "Are safety protocols properly implemented?",
+                            "input_statement": "Safety measures are in place and functional",
+                            "framework_ref": "ISO 45001:6.1",
+                            "match_score": 0.85,
+                            "compliance_level": "High",
+                            "status": "compliant",
+                            "gap": "",
+                            "recommendation": "Continue current safety practices",
+                            "potential_violations": [],
+                            "max_penalty_usd": 0
+                        }
+                    ]
+                }
+            ]
+        }
+    
+    # For real audits, load the report data
+    metadata = load_audit_metadata()
+    audit = None
+    job_id = None
+    
+    for jid, audit_data in metadata.get("audits", {}).items():
+        if audit_data.get("report_id") == report_id:
+            audit = audit_data
+            job_id = jid
+            break
+    
+    if not audit:
         raise HTTPException(status_code=404, detail="Report not found")
     
-    # Extract all findings (ComplianceItems) from the report
-    findings = []
-    finding_id = 0
+    # Load the full report
+    json_path = RESULTS_DIR / job_id / "report.json"
     
-    for result in report.get("results", []):
+    if not json_path.exists():
+        raise HTTPException(status_code=404, detail="Report data not found")
+    
+    with open(json_path, "r") as f:
+        report_data = json.load(f)
+    
+    # Structure findings with nested categories and add compliance_level
+    results = []
+    finding_counter = 0
+    
+    for result in report_data.get("results", []):
+        category_items = []
         for item in result.get("items", []):
-            finding_id += 1
-            findings.append({
-                "finding_id": f"FIND-{report_id}-{finding_id:04d}",
-                "category": result.get("category"),
-                "framework": result.get("framework"),
-                "question": item.get("question"),
+            finding_counter += 1
+            match_score = item.get("match_score", 0)
+            
+            # Determine compliance level and status
+            if match_score >= 0.8:
+                compliance_level = "High"
+                status = "compliant"
+            elif match_score >= 0.5:
+                compliance_level = "Medium"
+                status = "review-needed"
+            else:
+                compliance_level = "Low"
+                status = "non-compliant"
+            
+            # Ensure questions are in English (basic check and translation for common cases)
+            question = item.get("question", "")
+            if any(french_word in question.lower() for french_word in ["est-ce", "avez-vous", "êtes-vous", "sont"]):
+                # This is likely French, use the English version from framework_ref or provide generic
+                question = f"Compliance check for {item.get('framework_ref', 'requirement')}"
+            
+            category_items.append({
+                "finding_id": f"FIND-{report_id}-{finding_counter:04d}",
+                "question": question,
                 "input_statement": item.get("input_statement"),
                 "framework_ref": item.get("framework_ref"),
-                "match_score": item.get("match_score"),
-                "status": "compliant" if item.get("match_score", 0) >= 0.8 else 
-                         "review-needed" if item.get("match_score", 0) >= 0.5 else "non-compliant",
-                "gap": item.get("gap"),
-                "recommendation": item.get("recommendation"),
+                "match_score": match_score,
+                "compliance_level": compliance_level,
+                "status": status,
+                "gap": item.get("gap", ""),
+                "recommendation": item.get("recommendation", ""),
                 "potential_violations": item.get("potential_violations", []),
                 "max_penalty_usd": item.get("max_penalty_usd", 0)
             })
+        
+        results.append({
+            "category": result.get("category"),
+            "framework": result.get("framework"),
+            "overall_score": result.get("overall_score", 0),
+            "items": category_items
+        })
     
     return {
         "report_id": report_id,
-        "total_findings": len(findings),
-        "findings": findings
+        "results": results
     }
 
 @app.get("/reports/{report_id}/findings/{finding_id}")
@@ -1037,20 +1281,28 @@ async def get_specific_finding(report_id: str, finding_id: str):
     except HTTPException:
         raise HTTPException(status_code=404, detail="Report not found")
     
-    # Find the specific finding
-    finding = next(
-        (f for f in findings_response["findings"] if f["finding_id"] == finding_id),
-        None
-    )
+    # Search for the specific finding in the nested structure
+    finding = None
+    for result in findings_response.get("results", []):
+        for item in result.get("items", []):
+            if item.get("finding_id") == finding_id:
+                finding = item.copy()
+                finding["category"] = result.get("category")
+                finding["framework"] = result.get("framework")
+                break
+        if finding:
+            break
     
     if not finding:
         raise HTTPException(status_code=404, detail="Finding not found")
     
     # Add additional context for the specific finding
     finding["report_id"] = report_id
+    
+    # The compliance_level is already included from the findings endpoint
+    # Add detailed analysis based on the finding data
     finding["detailed_analysis"] = {
-        "compliance_level": "High" if finding["match_score"] >= 0.8 else 
-                            "Medium" if finding["match_score"] >= 0.5 else "Low",
+        "compliance_level": finding.get("compliance_level", "Unknown"),
         "priority": "Critical" if finding["max_penalty_usd"] > 100000 else 
                    "High" if finding["max_penalty_usd"] > 50000 else 
                    "Medium" if finding["max_penalty_usd"] > 10000 else "Low",
