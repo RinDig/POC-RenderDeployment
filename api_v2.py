@@ -134,7 +134,7 @@ def generate_mock_reports() -> List[Dict[str, Any]]:
         {
             "job_id": "mock-001",
             "report_id": "REP-2024-0001",
-            "site_name": "Brazzaville Mining Complex",
+            "site_name": "Kinshasa Mining Complex",
             "site_code": "BZV-001",
             "operator": "Congo Mining Corp",
             "auditor_name": "Jean-Pierre Mbala",
@@ -647,26 +647,26 @@ async def get_dashboard_summary():
     # Mock data for POC demonstration - this serves as baseline data
     # Real user-submitted audits will be added to this data
     mock_sites = [
-        {"name": "Brazzaville Mining Complex", "code": "BZV-001", "lat": -4.2634, "lng": 15.2429, "status": "non-compliant"},
-        {"name": "Sangha River Mine", "code": "SRM-004", "lat": -0.8317, "lng": 17.6856, "status": "compliant"},
-        {"name": "Kabo Forest Mine", "code": "KFM-012", "lat": -2.154, "lng": 16.1624, "status": "review-needed"},
-        {"name": "Ouesso Mining Site", "code": "OMS-007", "lat": -1.8312, "lng": 14.7218, "status": "compliant"},
-        {"name": "Likouala Copper Mine", "code": "LCM-003", "lat": -3.7056, "lng": 17.8914, "status": "not-applicable"},
-        {"name": "Niari Valley Mine", "code": "NVM-008", "lat": -2.9456, "lng": 13.1738, "status": "non-compliant"},
-        {"name": "Cuvette Basin Mine", "code": "CBM-015", "lat": -1.2046, "lng": 16.8974, "status": "review-needed"},
-        {"name": "Pointe-Noire Coastal Mine", "code": "PNC-002", "lat": -4.7727, "lng": 11.8638, "status": "compliant"},
-        {"name": "Impfondo Diamond Mine", "code": "IDM-019", "lat": -0.6134, "lng": 16.2456, "status": "review-needed"},
-        {"name": "Alima Gold Mine", "code": "AGM-025", "lat": -3.1542, "lng": 15.8745, "status": "non-compliant"},
-        {"name": "Dolisie Iron Ore", "code": "DIO-031", "lat": -2.4892, "lng": 12.9834, "status": "compliant"},
-        {"name": "Bomassa Timber Mine", "code": "BTM-047", "lat": -1.5628, "lng": 18.1456, "status": "not-applicable"},
-        {"name": "Mayombe Bauxite", "code": "MBX-013", "lat": -4.1234, "lng": 13.5678, "status": "review-needed"},
-        {"name": "Plateaux Copper Mine", "code": "PCM-055", "lat": -0.9876, "lng": 15.4321, "status": "compliant"},
-        {"name": "Pool Region Quarry", "code": "PRQ-061", "lat": -3.8765, "lng": 14.2109, "status": "non-compliant"},
-        {"name": "Mambili Forest Concession", "code": "MFC-078", "lat": -1.3456, "lng": 17.289, "status": "compliant"},
-        {"name": "Odzala Phosphate Mine", "code": "OPM-084", "lat": -2.789, "lng": 16.5432, "status": "review-needed"},
-        {"name": "Kouilou Salt Works", "code": "KSW-092", "lat": -4.5432, "lng": 12.3456, "status": "not-applicable"},
-        {"name": "Equateur Limestone", "code": "ELS-103", "lat": -1.7654, "lng": 14.9876, "status": "compliant"},
-        {"name": "Sangha Zinc Mine", "code": "SZM-118", "lat": -3.4567, "lng": 17.1234, "status": "non-compliant"},
+        {"name": "Kinshasa Mining Complex", "code": "KIN-001", "lat": -4.3276, "lng": 15.3136, "status": "non-compliant"},
+        {"name": "Lubumbashi Copper Mine", "code": "LBM-004", "lat": -11.6640, "lng": 27.4792, "status": "compliant"},
+        {"name": "Kolwezi Cobalt Mine", "code": "KWZ-012", "lat": -10.7143, "lng": 25.4666, "status": "review-needed"},
+        {"name": "Goma Mining Site", "code": "GOM-007", "lat": -1.6784, "lng": 29.2308, "status": "compliant"},
+        {"name": "Kisangani Gold Mine", "code": "KIS-003", "lat": 0.5152, "lng": 25.1919, "status": "not-applicable"},
+        {"name": "Bukavu Tin Mine", "code": "BKV-008", "lat": -2.5083, "lng": 28.8428, "status": "non-compliant"},
+        {"name": "Matadi Iron Ore", "code": "MAT-015", "lat": -5.8167, "lng": 13.4833, "status": "review-needed"},
+        {"name": "Kananga Diamond Mine", "code": "KNG-002", "lat": -5.8965, "lng": 22.4178, "status": "compliant"},
+        {"name": "Mbandaka Forest Mine", "code": "MBD-019", "lat": 0.0486, "lng": 18.2603, "status": "review-needed"},
+        {"name": "Mbuji-Mayi Diamond", "code": "MJM-025", "lat": -6.1361, "lng": 23.5891, "status": "non-compliant"},
+        {"name": "Tshikapa Mine", "code": "TSH-031", "lat": -6.4167, "lng": 20.8, "status": "compliant"},
+        {"name": "Likasi Copper Mine", "code": "LKS-047", "lat": -10.9813, "lng": 26.7384, "status": "not-applicable"},
+        {"name": "Kipushi Zinc Mine", "code": "KPS-013", "lat": -11.7608, "lng": 27.2434, "status": "review-needed"},
+        {"name": "Kamoa Copper Project", "code": "KMP-055", "lat": -10.9739, "lng": 25.3908, "status": "compliant"},
+        {"name": "Tenke Fungurume", "code": "TFM-061", "lat": -10.6167, "lng": 26.2167, "status": "non-compliant"},
+        {"name": "Kamoto Underground", "code": "KMT-078", "lat": -10.7215, "lng": 25.3996, "status": "compliant"},
+        {"name": "Mutanda Mining", "code": "MTD-084", "lat": -10.7645, "lng": 25.5798, "status": "review-needed"},
+        {"name": "Ruashi Mining", "code": "RSH-092", "lat": -11.6178, "lng": 27.5693, "status": "not-applicable"},
+        {"name": "Kibali Gold Mine", "code": "KBL-103", "lat": 2.7619, "lng": 30.3822, "status": "compliant"},
+        {"name": "Mongbwalu Gold", "code": "MGB-118", "lat": 1.9500, "lng": 29.9500, "status": "non-compliant"},
     ]
     
     # Start with mock sites
@@ -691,8 +691,8 @@ async def get_dashboard_summary():
                 all_sites.append({
                     "name": audit.get("site_name", "Unknown Site"),
                     "code": site_code,
-                    "lat": -2.5 + random.uniform(-2, 2),  # Random lat for demo
-                    "lng": 15.5 + random.uniform(-3, 3),  # Random lng for demo
+                    "lat": -4.0 + random.uniform(-7, 7),  # Random lat for DRC demo
+                    "lng": 23.0 + random.uniform(-10, 10),  # Random lng for DRC demo
                     "status": status
                 })
                 existing_codes.add(site_code)
@@ -711,7 +711,7 @@ async def get_dashboard_summary():
     # Risk hotspots mock data
     risk_hotspots = [
         RiskHotspot(
-            site_name="Brazzaville Mining Complex",
+            site_name="Kinshasa Mining Complex",
             site_code="BZV-001",
             risk_score=92,
             top_issues=[
