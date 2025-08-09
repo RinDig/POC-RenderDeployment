@@ -453,17 +453,28 @@ async def run_compliance_pipeline(
         
         # Update metadata with results
         all_metadata = load_audit_metadata()
-        all_metadata["audits"][job_id].update({
-            "status": JobStatus.COMPLETED.value,
-            "completed_at": datetime.now().isoformat(),
-            "compliance_score": report.overall_compliance_score * 100,
-            "findings_summary": {
-                "compliant": sum(1 for r in report.results for i in r.items if i.match_score >= 0.8),
-                "non_compliant": sum(1 for r in report.results for i in r.items if i.match_score < 0.5),
-                "review_needed": sum(1 for r in report.results for i in r.items if 0.5 <= i.match_score < 0.8)
-            }
-        })
-        save_audit_metadata(all_metadata)
+        if job_id in all_metadata.get("audits", {}):
+            # Determine compliance status based on score
+            compliance_score = report.overall_compliance_score * 100
+            if compliance_score >= 80:
+                compliance_status = "compliant"
+            elif compliance_score >= 60:
+                compliance_status = "review-needed"
+            else:
+                compliance_status = "non-compliant"
+            
+            all_metadata["audits"][job_id].update({
+                "status": JobStatus.COMPLETED.value,
+                "completed_at": datetime.now().isoformat(),
+                "compliance_score": compliance_score,
+                "compliance_status": compliance_status,
+                "findings_summary": {
+                    "compliant": sum(1 for r in report.results for i in r.items if i.match_score >= 0.8),
+                    "non_compliant": sum(1 for r in report.results for i in r.items if i.match_score < 0.5),
+                    "review_needed": sum(1 for r in report.results for i in r.items if 0.5 <= i.match_score < 0.8)
+                }
+            })
+            save_audit_metadata(all_metadata)
         
         # Cleanup orchestrator
         await orchestrator.cleanup()
@@ -478,9 +489,10 @@ async def run_compliance_pipeline(
         
         # Update metadata
         all_metadata = load_audit_metadata()
-        all_metadata["audits"][job_id]["status"] = JobStatus.FAILED.value
-        all_metadata["audits"][job_id]["error"] = str(e)
-        save_audit_metadata(all_metadata)
+        if job_id in all_metadata.get("audits", {}):
+            all_metadata["audits"][job_id]["status"] = JobStatus.FAILED.value
+            all_metadata["audits"][job_id]["error"] = str(e)
+            save_audit_metadata(all_metadata)
         
     except Exception as e:
         logger.error(f"Unexpected error in job {job_id}: {str(e)}")
@@ -488,9 +500,10 @@ async def run_compliance_pipeline(
         
         # Update metadata
         all_metadata = load_audit_metadata()
-        all_metadata["audits"][job_id]["status"] = JobStatus.FAILED.value
-        all_metadata["audits"][job_id]["error"] = str(e)
-        save_audit_metadata(all_metadata)
+        if job_id in all_metadata.get("audits", {}):
+            all_metadata["audits"][job_id]["status"] = JobStatus.FAILED.value
+            all_metadata["audits"][job_id]["error"] = str(e)
+            save_audit_metadata(all_metadata)
 
 # API Endpoints
 @app.get("/")
@@ -596,7 +609,11 @@ async def submit_audit(
             api_key
         )
         
-        return AuditSubmissionResponse(job_id=job_id)
+        return AuditSubmissionResponse(
+            job_id=job_id,
+            status="processing",
+            message=f"Audit submission accepted. Report ID: {report_id}"
+        )
         
     except Exception as e:
         # Clean up on error
@@ -836,8 +853,9 @@ async def get_reports_list(
     mock_reports = generate_mock_reports()
     all_audits = mock_reports + real_audits
     
-    # Filter only completed audits
-    filtered_audits = [a for a in all_audits if a.get("status") in [JobStatus.COMPLETED.value, "complete"]]
+    # Include all audits - both completed and processing
+    # Processing audits will have limited data but should still appear in the list
+    filtered_audits = all_audits.copy()
     
     # Apply filters
     if site_name:
@@ -884,18 +902,32 @@ async def get_reports_list(
     # Format reports
     reports = []
     for audit in paginated_audits:
+        # For processing audits, use default values
+        audit_status = audit.get("status", "unknown")
+        if audit_status == JobStatus.PROCESSING.value:
+            # Processing audits don't have scores yet
+            compliance_score = 0
+            findings_summary = FindingsSummary(
+                compliant=0,
+                non_compliant=0,
+                review_needed=0
+            )
+        else:
+            compliance_score = round(audit.get("compliance_score", 0), 1)
+            findings_summary = FindingsSummary(
+                compliant=audit.get("findings_summary", {}).get("compliant", 0),
+                non_compliant=audit.get("findings_summary", {}).get("non_compliant", 0),
+                review_needed=audit.get("findings_summary", {}).get("review_needed", 0)
+            )
+        
         reports.append(ReportItem(
             report_id=audit.get("report_id", "Unknown"),
             audit_site=audit.get("site_name", "Unknown Site"),
             site_code=audit.get("site_code"),
             date_of_audit=audit.get("date_of_audit", datetime.now().date().isoformat()),
-            compliance_score=round(audit.get("compliance_score", 0), 1),
-            status=audit.get("status", "unknown"),
-            findings_summary=FindingsSummary(
-                compliant=audit.get("findings_summary", {}).get("compliant", 0),
-                non_compliant=audit.get("findings_summary", {}).get("non_compliant", 0),
-                review_needed=audit.get("findings_summary", {}).get("review_needed", 0)
-            ),
+            compliance_score=compliance_score,
+            status=audit_status,
+            findings_summary=findings_summary,
             auditor_name=audit.get("auditor_name"),
             frameworks=audit.get("framework_files", [])
         ))
@@ -1009,38 +1041,80 @@ Total potential financial exposure identified: **$50,000**"""
     if not audit:
         raise HTTPException(status_code=404, detail="Report not found")
     
-    # Load the full report
+    # Check if audit is still processing
+    if audit.get("status") == JobStatus.PROCESSING.value:
+        # Return a processing status response
+        return {
+            "metadata": audit,
+            "status": "processing",
+            "message": "Report is still being processed. Please check back later.",
+            "timestamp": audit.get("submitted_at", datetime.now().isoformat()),
+            "frameworks": audit.get("framework_files", []),
+            "overall_compliance_score": 0,
+            "executive_summary": "## Compliance Assessment In Progress\n\nThe audit is currently being analyzed. Results will be available shortly.",
+            "criticalActions": [],
+            "financialExposure": {
+                "totalExposure": "$0.00",
+                "violations": []
+            }
+        }
+    
+    # Check if audit failed
+    if audit.get("status") == JobStatus.FAILED.value:
+        error_msg = audit.get("error", "An error occurred during processing")
+        return {
+            "metadata": audit,
+            "status": "error",
+            "error": error_msg,
+            "timestamp": audit.get("submitted_at", datetime.now().isoformat()),
+            "frameworks": audit.get("framework_files", []),
+            "overall_compliance_score": 0,
+            "executive_summary": f"## Compliance Assessment Failed\n\nError: {error_msg}",
+            "criticalActions": [],
+            "financialExposure": {
+                "totalExposure": "$0.00",
+                "violations": []
+            }
+        }
+    
+    # Load the full report for completed audits
     json_path = RESULTS_DIR / job_id / "report.json"
     
     if not json_path.exists():
+        # This shouldn't happen for completed audits, but handle gracefully
         raise HTTPException(status_code=404, detail="Report data not found")
     
-    with open(json_path, "r") as f:
-        report_data = json.load(f)
+    try:
+        with open(json_path, "r") as f:
+            report_data = json.load(f)
+    except Exception as e:
+        logger.error(f"Error loading report data for {report_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Error loading report data: {str(e)}")
     
-    # Process and restructure the report data
-    compliance_score = report_data.get("overall_compliance_score", 0) * 100
-    site_name = audit.get("site_name", "Unknown Site")
-    
-    # Count findings by status
-    compliant_count = 0
-    non_compliant_count = 0
-    review_needed_count = 0
-    
-    for result in report_data.get("results", []):
-        for item in result.get("items", []):
-            score = item.get("match_score", 0)
-            if score >= 0.8:
-                compliant_count += 1
-            elif score >= 0.5:
-                review_needed_count += 1
-            else:
-                non_compliant_count += 1
-    
-    # Convert executive summary to markdown if not already
-    original_summary = report_data.get("executive_summary", "")
-    if not original_summary.startswith("##"):
-        executive_summary = f"""## Compliance Assessment Summary
+    try:
+        # Process and restructure the report data
+        compliance_score = report_data.get("overall_compliance_score", 0) * 100
+        site_name = audit.get("site_name", "Unknown Site")
+        
+        # Count findings by status
+        compliant_count = 0
+        non_compliant_count = 0
+        review_needed_count = 0
+        
+        for result in report_data.get("results", []):
+            for item in result.get("items", []):
+                score = item.get("match_score", 0)
+                if score >= 0.8:
+                    compliant_count += 1
+                elif score >= 0.5:
+                    review_needed_count += 1
+                else:
+                    non_compliant_count += 1
+        
+        # Convert executive summary to markdown if not already
+        original_summary = report_data.get("executive_summary", "")
+        if not original_summary.startswith("##"):
+            executive_summary = f"""## Compliance Assessment Summary
 
 **Site:** {site_name}  
 **Overall Compliance Score:** **{compliance_score:.1f}%**  
@@ -1055,66 +1129,94 @@ Total potential financial exposure identified: **$50,000**"""
 
 ### Risk Assessment:
 Total potential financial exposure: **${report_data.get('total_max_penalty_usd', 0):,.2f}**"""
-    else:
-        executive_summary = original_summary
-    
-    # Convert critical recommendations to structured actions
-    critical_actions = []
-    recommendations = report_data.get("critical_recommendations", [])
-    for idx, rec in enumerate(recommendations, 1):
-        # Determine priority based on position and content
-        if idx <= 2 or "critical" in rec.lower() or "immediate" in rec.lower():
-            priority = "critical"
-        elif idx <= 4 or "high" in rec.lower():
-            priority = "high"
-        elif "medium" in rec.lower():
-            priority = "medium"
         else:
-            priority = "low"
+            executive_summary = original_summary
         
-        critical_actions.append({
-            "id": f"action_{idx:03d}",
-            "priority": priority,
-            "description": rec
-        })
+        # Convert critical recommendations to structured actions
+        critical_actions = []
+        recommendations = report_data.get("critical_recommendations", [])
+        for idx, rec in enumerate(recommendations, 1):
+            # Skip if recommendation is None or empty
+            if not rec:
+                continue
+                
+            # Safely convert to string and determine priority
+            rec_str = str(rec)
+            rec_lower = rec_str.lower() if rec_str else ""
+            
+            # Determine priority based on position and content
+            if idx <= 2 or "critical" in rec_lower or "immediate" in rec_lower:
+                priority = "critical"
+            elif idx <= 4 or "high" in rec_lower:
+                priority = "high"
+            elif "medium" in rec_lower:
+                priority = "medium"
+            else:
+                priority = "low"
+            
+            critical_actions.append({
+                "id": f"action_{idx:03d}",
+                "priority": priority,
+                "description": rec_str
+            })
+        
+        # Structure financial exposure data
+        total_penalty = report_data.get("total_max_penalty_usd", 0)
+        financial_exposure = {
+            "totalExposure": f"${total_penalty:,.2f}",
+            "violations": []
+        }
+        
+        # Extract violations from results
+        seen_violations = set()
+        try:
+            for result in report_data.get("results", []):
+                for item in result.get("items", []):
+                    for violation in item.get("potential_violations", []):
+                        violation_key = f"{violation.get('code')}_{violation.get('description')}"
+                        if violation_key not in seen_violations and violation.get("max_penalty_usd", 0) > 0:
+                            seen_violations.add(violation_key)
+                            financial_exposure["violations"].append({
+                                "code": violation.get("code", ""),
+                                "description": violation.get("description", ""),
+                                "maxExposure": f"${violation.get('max_penalty_usd', 0):,.2f}"
+                            })
+        except (TypeError, AttributeError) as e:
+            logger.warning(f"Error extracting violations for report {report_id}: {e}")
+            # Continue with empty violations list
+        
+        # Sort violations by amount (highest first)
+        financial_exposure["violations"].sort(
+            key=lambda x: float(x["maxExposure"].replace("$", "").replace(",", "")),
+            reverse=True
+        )
     
-    # Structure financial exposure data
-    total_penalty = report_data.get("total_max_penalty_usd", 0)
-    financial_exposure = {
-        "totalExposure": f"${total_penalty:,.2f}",
-        "violations": []
-    }
-    
-    # Extract violations from results
-    seen_violations = set()
-    for result in report_data.get("results", []):
-        for item in result.get("items", []):
-            for violation in item.get("potential_violations", []):
-                violation_key = f"{violation.get('code')}_{violation.get('description')}"
-                if violation_key not in seen_violations and violation.get("max_penalty_usd", 0) > 0:
-                    seen_violations.add(violation_key)
-                    financial_exposure["violations"].append({
-                        "code": violation.get("code", ""),
-                        "description": violation.get("description", ""),
-                        "maxExposure": f"${violation.get('max_penalty_usd', 0):,.2f}"
-                    })
-    
-    # Sort violations by amount (highest first)
-    financial_exposure["violations"].sort(
-        key=lambda x: float(x["maxExposure"].replace("$", "").replace(",", "")),
-        reverse=True
-    )
-    
-    # Return restructured report without redundant results
-    return {
-        "metadata": audit,
-        "timestamp": report_data.get("timestamp", datetime.now().isoformat()),
-        "frameworks": report_data.get("frameworks", []),
-        "overall_compliance_score": report_data.get("overall_compliance_score", 0),
-        "executive_summary": executive_summary,
-        "criticalActions": critical_actions,
-        "financialExposure": financial_exposure
-    }
+        # Return restructured report without redundant results
+        return {
+            "metadata": audit,
+            "timestamp": report_data.get("timestamp", datetime.now().isoformat()),
+            "frameworks": report_data.get("frameworks", []),
+            "overall_compliance_score": report_data.get("overall_compliance_score", 0),
+            "executive_summary": executive_summary,
+            "criticalActions": critical_actions,
+            "financialExposure": financial_exposure
+        }
+    except Exception as e:
+        logger.error(f"Error processing report {report_id}: {e}")
+        # Return a minimal valid response on error
+        return {
+            "metadata": audit,
+            "timestamp": datetime.now().isoformat(),
+            "frameworks": audit.get("framework_files", []),
+            "overall_compliance_score": 0,
+            "executive_summary": "## Error Processing Report\n\nAn error occurred while processing the report data. Please try again or contact support.",
+            "criticalActions": [],
+            "financialExposure": {
+                "totalExposure": "$0.00",
+                "violations": []
+            },
+            "error": str(e)
+        }
 
 @app.get("/reports/{report_id}/findings")
 async def get_report_findings(report_id: str):
@@ -1205,10 +1307,20 @@ async def get_report_findings(report_id: str):
     if not audit:
         raise HTTPException(status_code=404, detail="Report not found")
     
+    # Check if audit is still processing or failed
+    if audit.get("status") in [JobStatus.PROCESSING.value, JobStatus.FAILED.value]:
+        # Return empty findings for processing/failed audits
+        return {
+            "report_id": report_id,
+            "status": audit.get("status"),
+            "results": []
+        }
+    
     # Load the full report
     json_path = RESULTS_DIR / job_id / "report.json"
     
     if not json_path.exists():
+        # This shouldn't happen for completed audits, but handle gracefully
         raise HTTPException(status_code=404, detail="Report data not found")
     
     with open(json_path, "r") as f:
