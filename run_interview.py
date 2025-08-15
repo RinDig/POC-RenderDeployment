@@ -268,15 +268,17 @@ class InteractiveInterview:
             self.clear_screen()
             self.print_header()
             
-            # Check for API key
+            # Check for API key - first from environment, then from .env
             api_key = os.getenv("OPENAI_API_KEY")
             if not api_key:
-                print("\n[WARNING] OPENAI_API_KEY not found in .env file")
+                print("\n[WARNING] OPENAI_API_KEY not found in environment")
                 print("AI-powered summaries will not be available.")
-                print("Add your key to .env file: OPENAI_API_KEY=your-key-here")
+                print("To enable AI features:")
+                print("  - Set OPENAI_API_KEY environment variable, or")
+                print("  - Add to .env file: OPENAI_API_KEY=your-key-here")
                 input("\nPress Enter to continue anyway...")
             else:
-                print("\n[OK] OpenAI API key loaded from .env file")
+                print("\n[OK] OpenAI API key loaded successfully")
             
             # Select framework
             framework = await self.select_framework()

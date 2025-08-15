@@ -26,6 +26,12 @@ results/
 !requirements*.json
 !package*.json
 
+# Interview System
+interview_exports/
+interview_sessions/
+*.interview.json
+interview_*.json
+
 # Logs
 *.log
 

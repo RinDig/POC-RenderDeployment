@@ -540,7 +540,7 @@ async def submit_audit(
     """
     
     # Validate file types
-    valid_input_extensions = ['.pdf', '.txt', '.mp3', '.docx']
+    valid_input_extensions = ['.pdf', '.txt', '.mp3', '.docx', '.json']
     if not any(input_file.filename.lower().endswith(ext) for ext in valid_input_extensions):
         raise HTTPException(
             status_code=400,
