@@ -17,6 +17,7 @@ class FrameworkLoaderAgent(BaseAgent):
     def __init__(self, api_key: str = None, framework_cache: Dict[str, str] = None):
         super().__init__("FrameworkLoader", api_key=api_key)
         # Allow sharing framework cache across instances
+        # also add a cache for the framework text 
         self.framework_cache = framework_cache if framework_cache is not None else {}
     
     def load_framework_text(self, framework_path: str) -> str:

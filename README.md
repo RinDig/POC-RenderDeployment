@@ -15,6 +15,7 @@ VigilOre uses advanced AI agents to:
 
 - **Multi-Framework Analysis**: Compare against multiple regulatory frameworks simultaneously
 - **Intelligent Document Processing**: Supports PDF, DOCX, TXT, and MP3 formats
+- **Interactive Interview System**: Structured compliance interviews with 70+ questions per framework
 - **Automated Compliance Scoring**: Get objective compliance scores for each requirement
 - **Financial Risk Assessment**: Calculate potential penalties based on framework violations
 - **Export Options**: Generate reports in JSON and Excel formats
@@ -49,6 +50,14 @@ pip install -r requirements-api.txt
 ```
 
 3. **Set environment variables**
+
+Create a `.env` file in the root directory:
+```bash
+# .env file
+OPENAI_API_KEY=your-openai-api-key
+```
+
+Or set directly in terminal:
 ```bash
 export OPENAI_API_KEY="your-openai-api-key"
 ```
@@ -161,6 +170,58 @@ For production deployment:
 3. **HTTPS Only**: Ensure all communications are encrypted
 4. **Rate Limiting**: Implement rate limiting to prevent abuse
 5. **Data Encryption**: Encrypt sensitive compliance data at rest
+
+## Interactive Interview System
+
+The API includes a comprehensive interview system that guides users through structured compliance assessments with 70+ questions per framework.
+
+### Running Interactive Interviews
+
+1. **Ensure your OpenAI API key is configured in .env file**:
+```bash
+# Create .env file in the root directory
+echo "OPENAI_API_KEY=your-api-key-here" > .env
+```
+
+2. **Run the interactive interview**:
+```bash
+python run_interview.py
+```
+
+3. **Follow the prompts to**:
+   - Select a compliance framework (DRC Mining Code, ISO 14001, etc.)
+   - Choose specific categories or complete full assessment
+   - Answer structured questions with validation
+   - Export results for pipeline upload
+
+### Interview Features
+
+- **Smart Question Branching**: Follow-up questions triggered by specific answers
+- **Multiple Question Types**: Yes/No, Scale (1-5), Multiple Choice, Text, Date, Number
+- **Progress Tracking**: Real-time progress bar and time estimates
+- **Session Management**: Pause and resume interviews with session IDs
+- **Confidence Scoring**: Rate confidence in critical answers
+- **Evidence Notes**: Add context for high-weight questions
+- **AI Summaries**: GPT-powered compliance summaries and recommendations
+
+### Interview Export
+
+After completing an interview, the system generates a JSON file that can be uploaded directly to the `/audits` endpoint for full compliance analysis. Export files include:
+- Structured compliance statements by category
+- AI-generated compliance summary
+- Preliminary compliance scores
+- Identified gaps and recommendations
+- Complete Q&A data for reference
+
+### Interview API Endpoints
+
+```http
+POST /interview/start         # Start new interview session
+GET /interview/{id}/question  # Get next question
+POST /interview/{id}/answer   # Submit answer
+GET /interview/{id}/progress  # Check progress
+GET /interview/{id}/export    # Export for pipeline
+```
 
 ## Testing
 

@@ -22,6 +22,15 @@ from pydantic import BaseModel, Field, EmailStr
 from audit_agent.core.orchestrator import ComplianceOrchestrator
 from audit_agent.models.compliance_models import FinalReport
 from audit_agent.utils.exceptions import AuditAgentError
+from audit_agent.agents.interview_agent import InterviewAgent
+from audit_agent.models.interview_models import (
+    InterviewStartRequest,
+    InterviewAnswer,
+    InterviewProgressResponse,
+    CategoryProgress,
+    InterviewResumeResponse
+)
+from audit_agent.data.compliance_questions import get_available_frameworks, get_categories_for_framework
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -1509,6 +1518,369 @@ async def get_excel_result(job_id: str):
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         filename=f"compliance_report_{job_id}.xlsx"
     )
+
+# ==================== INTERVIEW SYSTEM ENDPOINTS ====================
+
+@app.post("/interview/start")
+async def start_interview(request: InterviewStartRequest):
+    """
+    Start a new compliance interview session
+    
+    This endpoint initiates a structured interview for compliance assessment
+    """
+    try:
+        # Create or get interview agent for the framework
+        if not hasattr(app.state, 'interview_agents'):
+            app.state.interview_agents = {}
+        
+        # Create agent if not exists for this framework
+        if request.framework not in app.state.interview_agents:
+            agent = InterviewAgent(request.framework, api_key=os.getenv("OPENAI_API_KEY"))
+            app.state.interview_agents[request.framework] = agent
+        else:
+            agent = app.state.interview_agents[request.framework]
+        
+        # Start session
+        session = agent.start_session(
+            site_name=request.site_name,
+            site_code=request.site_code,
+            operator=request.operator,
+            auditor_name=request.auditor_name,
+            auditor_email=request.auditor_email,
+            language=request.language,
+            categories=request.categories
+        )
+        
+        # Get first question
+        first_question = agent.get_next_question(session.session_id)
+        
+        return {
+            "session": session,
+            "first_question": first_question,
+            "total_questions": session.total_questions,
+            "categories": get_categories_for_framework(request.framework)
+        }
+        
+    except Exception as e:
+        logger.error(f"Failed to start interview: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/interview/{session_id}/question")
+async def get_current_question(session_id: str):
+    """
+    Get the current/next question for an interview session
+    """
+    # Find the agent that has this session
+    agent = None
+    if hasattr(app.state, 'interview_agents'):
+        for framework_agent in app.state.interview_agents.values():
+            if session_id in framework_agent.sessions:
+                agent = framework_agent
+                break
+    
+    if not agent:
+        raise HTTPException(status_code=404, detail="Session not found")
+    
+    session = agent.get_session(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    
+    question = agent.get_next_question(session_id)
+    
+    return {
+        "question": question,
+        "session_status": session.status,
+        "progress": session.progress_percentage,
+        "questions_remaining": session.total_questions - len(session.answers)
+    }
+
+@app.post("/interview/{session_id}/answer")
+async def submit_answer(
+    session_id: str,
+    question_id: str = Form(...),
+    answer: str = Form(...),
+    confidence: Optional[float] = Form(None),
+    notes: Optional[str] = Form(None)
+):
+    """
+    Submit an answer to a compliance question
+    """
+    # Find the agent
+    agent = None
+    if hasattr(app.state, 'interview_agents'):
+        for framework_agent in app.state.interview_agents.values():
+            if session_id in framework_agent.sessions:
+                agent = framework_agent
+                break
+    
+    if not agent:
+        raise HTTPException(status_code=404, detail="Session not found")
+    
+    # Parse answer based on expected type
+    try:
+        # Try to parse as JSON first (for arrays, objects)
+        import json
+        answer_value = json.loads(answer)
+    except:
+        # Check for boolean
+        if answer.lower() in ["true", "false"]:
+            answer_value = answer.lower() == "true"
+        else:
+            # Try as number
+            try:
+                if "." in answer:
+                    answer_value = float(answer)
+                else:
+                    answer_value = int(answer)
+            except:
+                # Keep as string
+                answer_value = answer
+    
+    # Submit answer
+    result = agent.submit_answer(
+        session_id=session_id,
+        question_id=question_id,
+        answer_value=answer_value,
+        confidence=confidence,
+        notes=notes
+    )
+    
+    return result
+
+@app.get("/interview/{session_id}/progress")
+async def get_interview_progress(session_id: str) -> InterviewProgressResponse:
+    """
+    Get detailed progress for an interview session
+    """
+    # Find the agent
+    agent = None
+    if hasattr(app.state, 'interview_agents'):
+        for framework_agent in app.state.interview_agents.values():
+            if session_id in framework_agent.sessions:
+                agent = framework_agent
+                break
+    
+    if not agent:
+        raise HTTPException(status_code=404, detail="Session not found")
+    
+    session = agent.get_session(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    
+    # Get category progress
+    category_progress = agent.get_category_progress(session_id)
+    
+    # Determine current category
+    current_category = None
+    if session.answers:
+        last_answer = session.answers[-1]
+        for q in agent.questions:
+            if q.id == last_answer.question_id:
+                current_category = q.category
+                break
+    
+    return InterviewProgressResponse(
+        session_id=session_id,
+        overall_progress=session.progress_percentage,
+        questions_answered=len(session.answers),
+        total_questions=session.total_questions,
+        required_remaining=sum(1 for q in agent.questions if q.required and not any(a.question_id == q.id for a in session.answers)),
+        category_progress=category_progress,
+        estimated_time_remaining_minutes=session.estimated_time_remaining_minutes or 0,
+        current_category=current_category,
+        status=session.status
+    )
+
+@app.get("/interview/{session_id}/export")
+async def export_interview(session_id: str):
+    """
+    Export completed interview for pipeline processing
+    
+    Returns a JSON file that can be uploaded to the main compliance pipeline
+    """
+    # Find the agent
+    agent = None
+    if hasattr(app.state, 'interview_agents'):
+        for framework_agent in app.state.interview_agents.values():
+            if session_id in framework_agent.sessions:
+                agent = framework_agent
+                break
+    
+    if not agent:
+        raise HTTPException(status_code=404, detail="Session not found")
+    
+    session = agent.get_session(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    
+    # Session must be completed
+    from audit_agent.models.interview_models import InterviewStatus
+    if session.status != InterviewStatus.COMPLETED:
+        raise HTTPException(status_code=400, detail="Interview not completed")
+    
+    try:
+        # Export the session
+        export = await agent.export_session(session_id)
+        
+        # Save to file
+        export_dir = RESULTS_DIR / "interviews"
+        export_dir.mkdir(exist_ok=True, parents=True)
+        
+        export_path = export_dir / f"interview_{session_id}.json"
+        with open(export_path, 'w') as f:
+            json.dump(export.model_dump(), f, indent=2, default=str)
+        
+        # Return as download
+        return FileResponse(
+            export_path,
+            media_type="application/json",
+            filename=f"compliance_interview_{session.site_name}_{session.framework}_{datetime.now().strftime('%Y%m%d')}.json"
+        )
+        
+    except Exception as e:
+        logger.error(f"Failed to export interview: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/interview/{session_id}/resume")
+async def resume_interview(session_id: str) -> InterviewResumeResponse:
+    """
+    Resume a paused interview session
+    """
+    # Find the agent
+    agent = None
+    if hasattr(app.state, 'interview_agents'):
+        for framework_agent in app.state.interview_agents.values():
+            if session_id in framework_agent.sessions:
+                agent = framework_agent
+                break
+    
+    if not agent:
+        raise HTTPException(status_code=404, detail="Session not found")
+    
+    session = agent.get_session(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    
+    # Update status if paused
+    from audit_agent.models.interview_models import InterviewStatus
+    if session.status == InterviewStatus.PAUSED:
+        session.status = InterviewStatus.IN_PROGRESS
+    
+    # Get next question
+    current_question = agent.get_next_question(session_id)
+    
+    # Get available categories
+    categories = get_categories_for_framework(session.framework)
+    
+    return InterviewResumeResponse(
+        session=session,
+        current_question=current_question,
+        categories_available=categories,
+        message="Interview session resumed successfully"
+    )
+
+@app.post("/interview/{session_id}/pause")
+async def pause_interview(session_id: str):
+    """
+    Pause an interview session to resume later
+    """
+    # Find the agent
+    agent = None
+    if hasattr(app.state, 'interview_agents'):
+        for framework_agent in app.state.interview_agents.values():
+            if session_id in framework_agent.sessions:
+                agent = framework_agent
+                break
+    
+    if not agent:
+        raise HTTPException(status_code=404, detail="Session not found")
+    
+    session = agent.get_session(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    
+    # Update status
+    from audit_agent.models.interview_models import InterviewStatus
+    session.status = InterviewStatus.PAUSED
+    
+    return {
+        "status": "paused",
+        "message": "Interview session paused successfully",
+        "session_id": session_id,
+        "progress": session.progress_percentage
+    }
+
+@app.get("/interview/frameworks")
+async def get_available_interview_frameworks():
+    """
+    Get list of available frameworks for interviews
+    """
+    frameworks = get_available_frameworks()
+    
+    # Add metadata for each framework
+    framework_info = []
+    for framework in frameworks:
+        categories = get_categories_for_framework(framework)
+        questions = len(get_questions_for_framework(framework))
+        
+        framework_info.append({
+            "id": framework,
+            "name": framework.replace("_", " "),
+            "categories": categories,
+            "total_questions": questions,
+            "estimated_minutes": (questions * 30) // 60  # 30 seconds per question average
+        })
+    
+    return {
+        "frameworks": framework_info,
+        "total_available": len(frameworks)
+    }
+
+@app.get("/interview/sessions")
+async def list_interview_sessions(
+    status: Optional[str] = Query(None, description="Filter by status"),
+    framework: Optional[str] = Query(None, description="Filter by framework"),
+    limit: int = Query(20, ge=1, le=100)
+):
+    """
+    List all interview sessions with optional filtering
+    """
+    all_sessions = []
+    
+    if hasattr(app.state, 'interview_agents'):
+        for agent_framework, agent in app.state.interview_agents.items():
+            for session in agent.sessions.values():
+                # Apply filters
+                if status and session.status != status:
+                    continue
+                if framework and session.framework != framework:
+                    continue
+                
+                all_sessions.append({
+                    "session_id": session.session_id,
+                    "framework": session.framework,
+                    "site_name": session.site_name,
+                    "auditor_name": session.auditor_name,
+                    "started_at": session.started_at,
+                    "status": session.status,
+                    "progress": session.progress_percentage,
+                    "questions_answered": len(session.answers),
+                    "total_questions": session.total_questions
+                })
+    
+    # Sort by most recent first
+    all_sessions.sort(key=lambda x: x["started_at"], reverse=True)
+    
+    # Apply limit
+    all_sessions = all_sessions[:limit]
+    
+    return {
+        "sessions": all_sessions,
+        "total": len(all_sessions)
+    }
+
+# Import for the questions function
+from audit_agent.data.compliance_questions import get_questions_for_framework
 
 if __name__ == "__main__":
     import uvicorn
