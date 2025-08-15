@@ -1168,19 +1168,48 @@ Total potential financial exposure: **${report_data.get('total_max_penalty_usd',
         }
         
         # Extract violations from results
+        # Import penalties info for violation descriptions
+        from audit_agent.utils.penalties import DRC_MINING_PENALTIES
+        
         seen_violations = set()
+        violation_penalties = {}  # Track penalties by article for aggregation
+        
         try:
             for result in report_data.get("results", []):
                 for item in result.get("items", []):
-                    for violation in item.get("potential_violations", []):
-                        violation_key = f"{violation.get('code')}_{violation.get('description')}"
-                        if violation_key not in seen_violations and violation.get("max_penalty_usd", 0) > 0:
-                            seen_violations.add(violation_key)
-                            financial_exposure["violations"].append({
-                                "code": violation.get("code", ""),
-                                "description": violation.get("description", ""),
-                                "maxExposure": f"${violation.get('max_penalty_usd', 0):,.2f}"
-                            })
+                    # potential_violations is a list of article strings like ["299", "301"]
+                    violations = item.get("potential_violations", [])
+                    item_penalty = item.get("max_penalty_usd", 0)
+                    
+                    if violations and item_penalty > 0:
+                        # Distribute the penalty across violations for this item
+                        penalty_per_violation = item_penalty / len(violations) if len(violations) > 0 else item_penalty
+                        
+                        for article in violations:
+                            if article not in violation_penalties:
+                                violation_penalties[article] = 0
+                            violation_penalties[article] += penalty_per_violation
+            
+            # Now create the violations list with descriptions
+            for article, total_penalty in violation_penalties.items():
+                if total_penalty > 0:
+                    # Get description from penalties dictionary
+                    description = "Violation"  # Default
+                    if article in DRC_MINING_PENALTIES:
+                        description = DRC_MINING_PENALTIES[article].violation_description
+                    elif article == "7.1.A":
+                        description = "Administrative/procedural noncompliance"
+                    elif article == "9.2.B":
+                        description = "Unauthorized processing/transformation"
+                    elif article == "8.4.C":
+                        description = "Theft, concealment of minerals"
+                    
+                    financial_exposure["violations"].append({
+                        "code": article,
+                        "description": description,
+                        "maxExposure": f"${total_penalty:,.2f}"
+                    })
+                    
         except (TypeError, AttributeError) as e:
             logger.warning(f"Error extracting violations for report {report_id}: {e}")
             # Continue with empty violations list
