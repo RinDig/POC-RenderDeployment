@@ -25,17 +25,19 @@ class PenaltyInfo:
 
 
 # DRC Mining Code Penalties per Articles 299-311 with CAMI 003/2024 adjustments
+# NOTE: Certain penalties excluded from compliance calculations as they fall outside typical audit scope
 DRC_MINING_PENALTIES: Dict[str, PenaltyInfo] = {
-    "299": PenaltyInfo(
+    # Article 299 - Excluded from calculations (fraud assessment requires forensic/criminal investigation)
+    # Note: While penalties up to $2.1M exist for fraud/pillage, these are not assessed in compliance audits
+    "299_excluded": PenaltyInfo(
         article="299",
-        violation_description="Illicit exploitation, fraud, pillage",
-        min_fine_usd=250000,
-        max_fine_usd=2145611.26,
+        violation_description="Illicit exploitation (excluding fraud/pillage aspects)",
+        min_fine_usd=0,  # Excluded from calculations
+        max_fine_usd=0,  # Excluded from calculations
         applies_to="Entity or Individual",
-        legal_reference="Mining Code + CAMI 003/2024",
-        adjustment_factors="Inflation, exchange rate, CAMI adjustment",
-        keywords=["illicit", "fraud", "pillage", "illegal exploitation", "unauthorized mining", 
-                  "unlicensed extraction", "fraudulent"]
+        legal_reference="Mining Code + CAMI 003/2024 (Note: Fraud penalties excluded from audit scope)",
+        adjustment_factors="Not calculated - requires criminal investigation",
+        keywords=["illegal exploitation", "unauthorized mining", "unlicensed extraction"]
     ),
     
     "299bis": PenaltyInfo(
@@ -122,16 +124,17 @@ DRC_MINING_PENALTIES: Dict[str, PenaltyInfo] = {
                   "unauthorized movement", "smuggling", "illicit possession"]
     ),
     
+    # Article 306 - Modified (obstruction penalties excluded, transparency/traceability included)
     "306": PenaltyInfo(
         article="306",
-        violation_description="Obstruction of mining authority (transparency & traceability)",
+        violation_description="Transparency & traceability non-compliance",
         min_fine_usd=8000,
-        max_fine_usd=4291222.57,  # Highest penalty - 10x increase per CAMI
+        max_fine_usd=42912.25,  # Using standard administrative penalty (obstruction excluded)
         applies_to="Entity or Individual",
-        legal_reference="Mining Code + CAMI 003/2024",
-        adjustment_factors="Inflation-indexed, discretionary weight",
-        keywords=["obstruction", "transparency", "traceability", "blocking inspection", 
-                  "refusing access", "hiding information", "inspection interference"]
+        legal_reference="Mining Code + CAMI 003/2024 (Note: Obstruction penalties up to $4.2M excluded)",
+        adjustment_factors="Administrative penalties only - obstruction requires separate assessment",
+        keywords=["transparency", "traceability", "reporting", "documentation gaps", 
+                  "incomplete records", "missing data"]
     ),
     
     "307": PenaltyInfo(
@@ -193,6 +196,24 @@ DRC_MINING_PENALTIES: Dict[str, PenaltyInfo] = {
         keywords=["corruption", "bribery", "kickback", "illicit payment", 
                   "influence peddling", "graft"]
     )
+}
+
+# Penalties excluded from audit calculations but referenced for context
+EXCLUDED_PENALTIES = {
+    "299_fraud": {
+        "article": "299",
+        "description": "Fraud and pillage",
+        "max_fine_usd": 2145611.26,
+        "reason_excluded": "Requires forensic/criminal investigation beyond compliance audit scope",
+        "note": "While fraud carries significant penalties, assessment requires specialized investigation"
+    },
+    "306_obstruction": {
+        "article": "306", 
+        "description": "Obstruction of mining authorities",
+        "max_fine_usd": 4291222.57,
+        "reason_excluded": "Operational/criminal matter, not a compliance gap assessment",
+        "note": "Obstruction penalties apply to active interference with inspections"
+    }
 }
 
 
@@ -263,3 +284,36 @@ def format_penalty_amount(amount: float) -> str:
         Formatted string like "$1,234,567.89"
     """
     return f"${amount:,.2f}"
+
+
+def get_excluded_penalties_context() -> str:
+    """
+    Get contextual information about penalties excluded from calculations
+    
+    Returns:
+        String with information about excluded penalties for report notes
+    """
+    context = "Note: Certain DRC Mining Code penalties are excluded from financial exposure calculations:\n"
+    
+    for key, info in EXCLUDED_PENALTIES.items():
+        context += f"- Article {info['article']} ({info['description']}): "
+        context += f"Up to {format_penalty_amount(info['max_fine_usd'])} - "
+        context += f"{info['reason_excluded']}\n"
+    
+    return context
+
+
+def get_audit_scope_disclaimer() -> str:
+    """
+    Get disclaimer text for audit reports regarding penalty calculations
+    
+    Returns:
+        Disclaimer text for inclusion in reports
+    """
+    return (
+        "Financial exposure calculations are based on compliance gaps identified during "
+        "the audit and include administrative and regulatory penalties only. "
+        "Penalties related to criminal matters (fraud, obstruction) are noted for reference "
+        "but excluded from calculations as they require specialized investigation beyond "
+        "the scope of a compliance audit."
+    )

@@ -10,7 +10,7 @@ from openpyxl.formatting.rule import CellIsRule
 
 from ..core.base_agent import BaseAgent
 from ..models.compliance_models import ComparisonResult, FinalReport
-from ..utils.penalties import format_penalty_amount
+from ..utils.penalties import format_penalty_amount, get_audit_scope_disclaimer, get_excluded_penalties_context
 
 
 class AggregatorAgent(BaseAgent):
@@ -53,7 +53,7 @@ class AggregatorAgent(BaseAgent):
                         rec += f" (Max Penalty: {format_penalty_amount(item.max_penalty_usd)})"
                     critical_recommendations.append(rec)
         
-        # Generate executive summary including financial exposure
+        # Generate executive summary including financial exposure with disclaimer
         summary_prompt = f"""
         Generate a concise executive summary (3-4 sentences) for this compliance audit:
         - Overall compliance score: {overall_compliance_score:.1%}
@@ -62,6 +62,7 @@ class AggregatorAgent(BaseAgent):
         - Categories reviewed: {len(set(r.category for r in all_results))}
         - Total maximum financial exposure: {format_penalty_amount(total_max_penalty)}
         
+        Note: Financial exposure includes administrative penalties only.
         Emphasize the financial risk if penalties are significant.
         """
         
@@ -69,6 +70,11 @@ class AggregatorAgent(BaseAgent):
             summary_prompt,
             "You are an executive report writer for compliance audits."
         )
+        
+        # Add disclaimer to executive summary if DRC framework is included
+        if any("DRC" in framework for framework in frameworks):
+            disclaimer = get_audit_scope_disclaimer()
+            executive_summary = f"{executive_summary}\n\n{disclaimer}"
         
         return FinalReport(
             timestamp=datetime.now().isoformat(),
@@ -157,6 +163,26 @@ class AggregatorAgent(BaseAgent):
             if report.total_max_penalty_usd > 0:
                 penalty_data = []
                 
+                # Add disclaimer row
+                penalty_data.append({
+                    'Article': 'DISCLAIMER',
+                    'Violation': get_audit_scope_disclaimer(),
+                    'Occurrences': '',
+                    'Categories Affected': '',
+                    'Max Fine (USD)': '',
+                    'Applies To': ''
+                })
+                
+                # Add excluded penalties context
+                penalty_data.append({
+                    'Article': 'EXCLUDED',
+                    'Violation': get_excluded_penalties_context(),
+                    'Occurrences': '',
+                    'Categories Affected': '',
+                    'Max Fine (USD)': '',
+                    'Applies To': ''
+                })
+                
                 # Add violations by article
                 article_summary = {}
                 for result in report.results:
@@ -173,7 +199,7 @@ class AggregatorAgent(BaseAgent):
                                 article_summary[article]['categories'].add(result.category)
                                 
                 # Import penalty details
-                from ..utils.penalties import DRC_MINING_PENALTIES
+                from ..utils.penalties import DRC_MINING_PENALTIES, get_excluded_penalties_context
                 
                 for article, summary in sorted(article_summary.items()):
                     penalty_info = DRC_MINING_PENALTIES.get(article)
