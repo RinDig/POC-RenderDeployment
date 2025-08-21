@@ -10,7 +10,7 @@ from openpyxl.formatting.rule import CellIsRule
 
 from ..core.base_agent import BaseAgent
 from ..models.compliance_models import ComparisonResult, FinalReport
-from ..utils.penalties import format_penalty_amount, get_audit_scope_disclaimer, get_excluded_penalties_context
+from ..utils.penalties import format_penalty_amount, get_audit_scope_disclaimer, get_excluded_penalties_context, DRC_MINING_PENALTIES
 
 
 class AggregatorAgent(BaseAgent):
@@ -198,9 +198,6 @@ class AggregatorAgent(BaseAgent):
                                 article_summary[article]['count'] += 1
                                 article_summary[article]['categories'].add(result.category)
                                 
-                # Import penalty details
-                from ..utils.penalties import DRC_MINING_PENALTIES, get_excluded_penalties_context
-                
                 for article, summary in sorted(article_summary.items()):
                     penalty_info = DRC_MINING_PENALTIES.get(article)
                     if penalty_info:
